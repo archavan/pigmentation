@@ -47,3 +47,25 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# modify below this line ======================================================
+
+.DS_Store
+**/docs
+**/data
+**/results
+*.pdf
+*.png
+*.tiff
+*.tif
+*.jpg
+*.jpeg
+*.zip
+*.pptx
+*.key
+*.numbers
+*.xlsx
+*.lif
+*.docx
+
+
