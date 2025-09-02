@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+cd ~/endoderm/species/scla/bulk/PIG022/refseq_v1/code/02b_kallisto_scripts
+
+sbatch I1_1.sh
+sbatch I1_2.sh
+sbatch I1_3.sh
+sbatch I1_4.sh
+sbatch I2_1.sh
+sbatch I2_2.sh
+sbatch I2_3.sh
+sbatch I2_4.sh
+sbatch I3_1.sh
+sbatch I3_2.sh
+sbatch I3_3.sh
+sbatch I3_4.sh
+sbatch I4_1.sh
+sbatch I4_2.sh
+sbatch I4_3.sh
+sbatch I4_4.sh
+sbatch I5_1.sh
+sbatch I5_2.sh
+sbatch I5_3.sh
+sbatch I5_4.sh
+sbatch I6_1.sh
+sbatch I6_2.sh
+sbatch I6_3.sh
+sbatch I6_4.sh
+sbatch S_1.sh
+sbatch S_2.sh
+sbatch S_3.sh
+sbatch S_4.sh

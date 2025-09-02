@@ -67,5 +67,7 @@ rsconnect/
 *.xlsx
 *.lif
 *.docx
+*.html
+
 
 

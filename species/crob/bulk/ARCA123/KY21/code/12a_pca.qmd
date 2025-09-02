@@ -1,0 +1,165 @@
+---
+title: "PCA of _Ciona_ gut segments bulk RNA-seq data"
+author: Arun Chavan
+format: 
+  html:
+    theme: cosmo
+    self-contained: true
+toc: true
+editor: source
+fontsize: 0.95em
+---
+
+Started: 2025-03-06  
+Last edited: `r format(Sys.time())`
+
+# Setup
+```{r, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(dpi = 300, collapse = TRUE, comment = "#>")
+
+library(tidyverse)
+library(here)
+library(glue)
+library(ggrepel)
+library(patchwork)
+
+basedir <- here("species/crob/bulk/ARCA123/KY21")
+genomedir <- here("species/crob/genome/KY21")
+
+source(here(basedir, "code/utilities_ggplot.R"))
+```
+
+# Data
+
+```{r}
+#| message: false
+#| warning: false
+
+tpm <- read_csv(here(basedir, "data/03_compiled/tpm_no-testis.csv"))
+
+samples <- read_csv(here(basedir, "data/00_metadata/samples.csv"))
+tissue_order <- c("stm.1.s", "int.1.w", "int.2.y", "int.3.w", "int.4.y")
+samples <- mutate(samples, tissue = fct(tissue, tissue_order))
+
+genes <- read_tsv(here(genomedir, "results/genes/gene-display-names.tsv"))
+display_names <- deframe(select(genes, gene_id, display_name))
+```
+
+
+# PCA on intestine samples
+
+```{r}
+samples_int <- samples %>% 
+  filter(str_detect(tissue, "int"))
+
+pca_int <- tpm %>% 
+  select(gene_id, starts_with("int")) %>% 
+  column_to_rownames("gene_id") %>% 
+  .[rowSums(.) > 3, ] %>% 
+  t() %>% 
+  prcomp()
+
+pca_int_var <- summary(pca_int)[[6]][2, ] * 100
+pca_int_x <- pca_int$x %>% 
+  as.data.frame() %>% 
+  rownames_to_column("sample_name") %>% 
+  right_join(x = samples_int, y = ., by = "sample_name") %>% 
+  separate(tissue, into = c(NA, "segment", NA), sep = "\\.", remove = FALSE)
+```
+
+```{r}
+#| fig-height: 6
+#| fig-width: 6
+plot(pca_int_var, xlab = "PC", ylab = "% Variance Explained")
+```
+
+```{r}
+#| fig-height: 4
+#| fig-width: 6
+
+ggplot(pca_int_x, aes(PC1, PC2)) +
+  geom_label(mapping = aes(label = segment, fill = colour)) +
+  scale_fill_identity() +
+  coord_fixed() +
+  theme_bw_2()
+
+ggplot(pca_int_x, aes(PC3, PC4)) +
+  geom_label(mapping = aes(label = segment, fill = colour)) +
+  scale_fill_identity() +
+  coord_fixed() +
+  theme_bw_2()
+```
+
+It doesn't look like there is any PC that's perfectly and strongly correlated with anterior-posterior axis. 
+
+```{r}
+#| fig-height: 6
+#| fig-width: 9
+
+plot_pc_against_segment <- function(x, .pc) {
+  ggplot(x, aes(segment, .data[[.pc]],  fill = colour)) + 
+    geom_point(shape = 21, size = 2) +
+    scale_fill_identity() +
+    theme_bw_2()
+}
+
+wrap_plots(
+  map(1:12, ~ plot_pc_against_segment(pca_int_x, paste0("PC", .x)))
+) +
+  plot_layout(guides = "collect")
+```
+
+
+```{r}
+#| fig-height: 6
+#| fig-width: 9
+
+plot_pc_against_rin <- function(x, .pc) {
+  ggplot(x, aes(RIN, .data[[.pc]], fill = colour)) +
+    geom_point(shape = 21, size = 2) +
+    scale_fill_identity() +
+    theme_bw_2()
+}
+
+wrap_plots(map(1:12, ~ plot_pc_against_rin(pca_int_x, paste0("PC", .x)))) +
+  plot_layout(guides = "collect")
+```
+
+
+```{r}
+#| fig-height: 8
+#| fig-width: 8
+plot_top_loading_genes <- function(x, .pc, .n = 10) {
+  x$rotation %>% 
+    as.data.frame() %>% 
+    rownames_to_column("gene_id") %>% 
+    select(all_of(c("gene_id", .pc))) %>% 
+    mutate(direction = ifelse(.data[[.pc]] > 0, "pos", "neg")) %>% 
+    nest(.by = direction) %>% 
+    mutate(data = map(data,
+                      ~ .x %>% 
+                        slice_max(abs(.data[[.pc]]), n = .n))) %>% 
+    unnest(cols = c(data)) %>% 
+    arrange(.data[[.pc]]) %>% 
+    mutate(gene_id = fct_inorder(gene_id)) %>% 
+    ggplot() +
+    geom_vline(xintercept = 0, linetype = 2, color = "grey") +
+    geom_point(aes(.data[[.pc]], gene_id)) +
+    geom_segment(aes(x = 0, xend = .data[[.pc]], y = gene_id, yend = gene_id)) +
+    scale_y_discrete(position = "right", 
+                     labels = function(y) str_trunc(display_names[y], 72)) +
+    labs(x = "Loading", title = .pc) +
+    theme_bw_2() 
+}
+
+plot_top_loading_genes(pca_int, "PC1", 20)
+plot_top_loading_genes(pca_int, "PC2", 20)
+plot_top_loading_genes(pca_int, "PC3", 20)
+plot_top_loading_genes(pca_int, "PC4", 20)
+```
+
+
+# Session Info
+```{r session_info, eval=TRUE}
+sessionInfo()
+```

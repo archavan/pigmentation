@@ -1,0 +1,153 @@
+---
+title: ARCA123 - test data quality
+author: Arun Chavan
+format: 
+  html:
+    theme: cosmo
+    self-contained: true
+toc: true
+editor: source
+fontsize: 0.95em
+---
+
+Started: 2024-11-13  
+Last edited: `r format(Sys.time())`
+
+# Setup
+```{r, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(dpi = 300, collapse = TRUE, comment = "#>")
+
+library(tidyverse)
+library(here)
+library(ggrepel)
+library(patchwork)
+
+basedir <- here("species/crob/bulk/ARCA123/KY21")
+genomedir <- here("species/crob/genome/KY21")
+```
+
+# Data
+```{r}
+#| message: false
+#| warning: false
+samples <- read_csv(here(basedir, "data/00_metadata/samples.csv"))
+tpm <- read_csv(here(basedir, "data/03_compiled/tpm.csv"))
+kalstats <- read_csv(here(basedir, "results/02_kallisto/kallisto_summary-stats.csv"))
+
+genes <- read_tsv(here(genomedir, "results/genes/gene-display-names.tsv"))
+```
+
+# The effect of RIN on mapping stats
+
+Some of the samples had a poor RIN score. I went ahead with their sequencing anyway since these samples are difficult to collect, so it would be nice to have these data, however imperfect, until we can collect better samples. 
+
+```{r}
+samples <- samples %>% 
+  left_join(select(kalstats, -animal, -tissue), 
+            by = c("sample_name")) %>% 
+  select(-n_targets, -n_bootstraps, -kallisto_version, -index_version, -tissue_description, -colour)
+
+samples <- samples %>% 
+  mutate(tissue = factor(
+    tissue, 
+    levels = c("stm.1.s", "int.1.w", "int.2.y", "int.3.w", "int.4.y")
+  ))
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 7
+
+ggplot(samples, aes(RIN, n_processed, label = sample_name)) +
+  geom_point(aes(color = tissue), size = 2.5) +
+  geom_text_repel() +
+  scale_x_continuous(limits = c(0, 10))
+
+ggplot(samples, aes(RIN, p_pseudoaligned, label = sample_name)) +
+  geom_point(aes(color = tissue), size = 2.5) +
+  geom_text_repel() +
+  scale_x_continuous(limits = c(0, 10)) +
+  scale_y_continuous(limits = c(0, 100))
+
+ggplot(samples, aes(RIN, p_unique, label = sample_name)) +
+  geom_point(aes(color = tissue), size = 2.5) +
+  geom_text_repel() +
+  scale_x_continuous(limits = c(0, 10)) +
+  scale_y_continuous(limits = c(0, 100))
+```
+
+It appears that samples with lower RIN have in general lower number of reads, but the percentage of pseudoaligned reads doesn't seem to differ much by sample RIN. 
+
+# TPM distributions
+
+```{r}
+hist_data <- tpm %>% 
+  pivot_longer(cols = -gene_id, names_to = "sample_name", values_to = "tpm") %>% 
+  mutate(sqrt_tpm = sqrt(tpm)) %>% 
+  left_join(select(samples, RIN, animal, tissue, sample_name)) %>% 
+  mutate(quality = ifelse(RIN < 5, "bad", "good"))
+```
+
+```{r}
+#| fig-width: 11
+#| fig-height: 8
+
+ggplot(hist_data, aes(sqrt_tpm)) +
+  geom_histogram(binwidth = 0.5, aes(fill = quality), 
+                 position = "identity",
+                 alpha = 1) +
+  coord_cartesian(xlim = c(0, 30)) +
+  facet_grid(rows = vars(animal), cols = vars(tissue)) +
+  geom_text(data = samples, aes(label = paste0("RIN = ", RIN)),
+            x = Inf, y = Inf, hjust = 1.5, vjust = 1.5) +
+  theme_bw()
+```
+
+Looking at the distributions of all samples separately, it's hard to tell if there are any obvious differences in the distirbution of tpms between good and bad samples.
+
+```{r}
+ggplot(hist_data, aes(sqrt_tpm)) +
+  geom_density(aes(fill = quality), 
+               position = "identity",
+               alpha = 0.5) +
+  coord_cartesian(xlim = c(0, 30)) +
+  theme_bw()
+```
+
+When the distributions are plotted all together coloured by sample quality, they look a little different, but I am not sure how to interpret this difference. 
+
+# Correlation of TPMs between good and bad RIN samples
+
+If we plot two replicate samples, with different RIN qualities, against each other, and if all RNA molecules are affected eqaully by degradation, we should see all genes along the identity line. If some genes are more or less affected by degradation, they would fall off of the identity line. 
+
+We'll use `gut.m` as an example, where `cr23` (rep 1) and `cr24` (rep 2) have good RIN values but `cr25` (rep 3) has RIN of 3.6.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 3
+
+p1 <- ggplot(tpm, aes(sqrt(int.3.w_1), sqrt(int.3.w_2))) +
+  geom_point(size = 1, alpha = 0.5) +
+  coord_equal()
+
+p2 <- ggplot(tpm, aes(sqrt(int.3.w_1), sqrt(int.3.w_3))) +
+  geom_point(size = 1, alpha = 0.5) +
+  coord_equal()
+
+p3 <- ggplot(tpm, aes(sqrt(int.3.w_2), sqrt(int.3.w_3))) +
+  geom_point(size = 1, alpha = 0.5) +
+  coord_equal()
+
+wrap_plots(p1, p2, p3, nrow = 1)
+```
+
+All three samples seem well-correlated with each other for the most part. There may be a slightly wider spread at higher tpms in good vs bad comparison as against the good vs good comparison, but it's subtle if at all. 
+
+# Summary
+
+It looks like even the samples with low RIN values may be usable after all. We will pay attention to these samples in later steps as well to see how well they correlated with everything else and how they are represented in the PCA. 
+
+# Session Info
+```{r session_info, eval=TRUE}
+sessionInfo()
+```
