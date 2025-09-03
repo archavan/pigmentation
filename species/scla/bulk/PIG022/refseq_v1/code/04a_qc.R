@@ -13,7 +13,7 @@ library(glue)
 
 basedir <- here("species/scla/bulk/PIG022/refseq_v1")
 
-resdir <- here(basedir, "results/03_clustering_pca")
+resdir <- here(basedir, "results/03_qc")
 fs::dir_create(resdir)
 
 source(here(basedir, "code/utilities_ggplot.R"), local = TRUE)
@@ -266,5 +266,55 @@ for (i in seq_len(nrow(ordinations))) {
     height = 7
   )
 }
+
+###############################################################################
+# remove outliers==============================================================
+###############################################################################
+
+# Sample I5_3 (intestinal segment 5 from animal D) seems to behave strangely
+# across most principal components, and it is also an outlier in terms of
+# percentage of reads pseudoaligned to the genome by kallisto. Therefore, we
+# will exclude all animal D (rep 3) samples from the analysis.
+
+metadata_clean <- metadata |>
+  filter(rep != 3)
+
+tpm_clean <- tpm |>
+  select(all_of(c("gene_id", metadata_clean$sample_id)))
+
+cts_clean <- cts |>
+  select(all_of(c("gene_id", metadata_clean$sample_id)))
+
+###############################################################################
+# clustering after removing rep 3 samples =====================================
+###############################################################################
+
+pv2 <- tpm_clean |>
+  select(where(is.numeric)) |>
+  mutate(across(everything(), sqrt)) |>
+  pvclust(
+    method.hclust = "complete",
+    method.dist = "corr",
+    nboot = 1000,
+    parallel = TRUE
+  )
+
+png(
+  here(resdir, "pvclust_no-rep-3.png"),
+  width = 8,
+  height = 6,
+  units = "in",
+  res = 300
+)
+plot(pv2, print.num = FALSE, print.pv = "bp", cex.pv = 0.7)
+dev.off()
+
+###############################################################################
+# write files #################################################################
+###############################################################################
+
+write_csv(metadata_clean, here(basedir, "data/samples_clean.csv"))
+write_csv(tpm_clean, here(basedir, "data/03_compiled/tpm_clean.csv"))
+write_csv(cts_clean, here(basedir, "data/03_compiled/counts_clean.csv"))
 
 # end =========================================================================
