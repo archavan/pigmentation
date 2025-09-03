@@ -54,6 +54,8 @@ rsconnect/
 **/docs
 **/data
 **/results
+temp.*
+
 *.pdf
 *.png
 *.tiff
