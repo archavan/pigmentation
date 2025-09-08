@@ -243,19 +243,19 @@ ggsave(
 plot_k8 <- plot_clusters(km$km_out[km$k == 8][[1]])
 plot_k9 <- plot_clusters(km$km_out[km$k == 9][[1]])
 plot_k10 <- plot_clusters(km$km_out[km$k == 10][[1]])
-plot_k9 <- plot_clusters(km$km_out[km$k == 12][[1]])
+plot_k12 <- plot_clusters(km$km_out[km$k == 12][[1]])
 plot_k15 <- plot_clusters(km$km_out[km$k == 15][[1]])
 plot_k20 <- plot_clusters(km$km_out[km$k == 20][[1]])
 
 ggsave(here(resdir, "cluster_k8.png"), plot_k8, height = 5, width = 8)
 ggsave(here(resdir, "cluster_k9.png"), plot_k9, height = 6, width = 8)
 ggsave(here(resdir, "cluster_k10.png"), plot_k10, height = 6, width = 8)
-ggsave(here(resdir, "cluster_k9.png"), plot_k9, height = 6, width = 8)
+ggsave(here(resdir, "cluster_k12.png"), plot_k12, height = 6, width = 8)
 ggsave(here(resdir, "cluster_k15.png"), plot_k15, height = 7, width = 8)
 ggsave(here(resdir, "cluster_k20.png"), plot_k20, height = 8, width = 8)
 
 ###############################################################################
-## clusters at k = 9 =========================================================
+## clusters at k = 9 ==========================================================
 ###############################################################################
 
 k9_out <- km$km_out[km$k == 9][[1]]
