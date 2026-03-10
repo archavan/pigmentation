@@ -39,7 +39,7 @@ modules <- read_tsv(here(genomedir, "gene-modules/functional-modules_gut.tsv"))
 
 modules$module <- NA_character_
 for (i in seq_len(nrow(modules))) {
-  modules$module[i] <- modules[i, 1:4] |>
+  modules$module[i] <- modules[i, 2:5] |>
     unlist() |>
     na.omit() |>
     paste0(collapse = " - ")
