@@ -30,7 +30,7 @@ fnmod <- read_tsv(here(genomedir, "results/genes/functional-modules_gut.tsv"))
 
 fnmod$module <- NA_character_
 for (i in seq_len(nrow(fnmod))) {
-  fnmod$module[i] <- fnmod[i, 1:4] |>
+  fnmod$module[i] <- fnmod[i, 2:5] |>
     unlist() |>
     na.omit() |>
     paste0(collapse = " - ")

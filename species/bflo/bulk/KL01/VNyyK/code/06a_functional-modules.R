@@ -30,7 +30,7 @@ fnmod <- read_tsv(here(genomedir, "results/genes/functional-modules_gut.tsv"))
 
 fnmod$module <- NA_character_
 for (i in seq_len(nrow(fnmod))) {
-  fnmod$module[i] <- fnmod[i, 1:4] |>
+  fnmod$module[i] <- fnmod[i, 2:5] |>
     unlist() |>
     na.omit() |>
     paste0(collapse = " - ")
@@ -40,9 +40,11 @@ fnmod <- relocate(fnmod, module, .after = module.4)
 
 fnmod_nest <- fnmod |>
   filter(!is.na(ortholog)) |>
-  select(module, gene_mm, ortholog, display_name) |>
+  select(label, module, gene_mm, ortholog, display_name) |>
   distinct() |>
-  nest_by(module)
+  group_by(label, module) |>
+  nest() |>
+  ungroup()
 
 ###############################################################################
 # prepare for plotting ========================================================
@@ -81,12 +83,16 @@ extract_facet_layout <- function(p) {
   list(nrows = n_facet_rows, ncols = n_facet_cols)
 }
 
-generate_module_display_name <- function(x) {
+generate_module_name <- function(x) {
   str_replace_all(x, " - ", " → \n  ")
 }
 
-plot_genes_faceted <- function(.genes, .module = NULL, .save = FALSE) {
-  .title <- generate_module_display_name(.module)
+plot_genes_faceted <- function(
+  .genes,
+  .module = NULL,
+  .save = FALSE
+) {
+  .title <- generate_module_name(.module)
   gene_order <- order_genes_by_expression(.genes)
   pdat <- tpm_long |>
     filter(gene_id %in% .genes) |>
@@ -163,7 +169,7 @@ order_genes_by_expression_pattern <- function(.pdat) {
 }
 
 plot_module_heatmap <- function(.genes, .module = NULL, .save = FALSE) {
-  .title <- generate_module_display_name(.module)
+  .title <- generate_module_name(.module)
   pdat <- tpm_long |>
     filter(gene_id %in% find_expressed_genes(.genes)) |>
     group_by(gene_id) |>
