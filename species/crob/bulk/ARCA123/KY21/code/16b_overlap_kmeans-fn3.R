@@ -71,6 +71,18 @@ km <- list.files(here(kmeansdir, "genes")) |>
 
 p_thresh <- 0.05
 
+
+## define universe ============================================================
+
+universe <- tpm |>
+  column_to_rownames("gene_id") |>
+  (function(x) x[rowSums(x) > 0, ])() |>
+  rownames()
+
+fn <- fn |>
+  mutate(gene_ids = map(gene_ids, ~ .x[.x %in% universe]))
+
+
 olaps <- expand_grid(
   mod = fn$mod,
   kclust = km$cluster
@@ -91,7 +103,7 @@ olaps <- expand_grid(
       genes_mod,
       genes_kclust,
       \(x, y) {
-        run_fisher_overlap_test(x, y, universe = genes$gene_id)
+        run_fisher_overlap_test(x, y, universe = universe)
       },
       .progress = TRUE
     )
