@@ -261,7 +261,7 @@ ggsave(here(resdir, "cluster_k20.png"), plot_k20, height = 8, width = 8)
 k9_out <- km$km_out[km$k == 9][[1]]
 
 k9 <- enframe(k9_out$cluster, name = "gene_id", value = "cluster") |>
-  left_join(select(genes, gene_id, symbol, description)) |>
+  left_join(select(genes, gene_id, display_name)) |>
   nest(.by = cluster) |>
   arrange(cluster)
 
