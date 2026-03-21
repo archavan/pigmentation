@@ -201,35 +201,35 @@ fn4_order <- zuss_fn4_wide |>
   (function(x) x$label[x$order])()
 
 fn4_order_manual <- tribble(
-  ~label                   , ~group                    ,
-  "BB hydrolysis: peptide" , "Enriched in pigmented"   ,
-  "BB hydrolysis: carb"    , "Enriched in pigmented"   ,
-  "Uptake: AA"             , "Enriched in pigmented"   ,
-  "Uptake: carb"           , "Enriched in pigmented"   ,
-  "Uptake: lipid"          , "Enriched in pigmented"   ,
-  "Endocytosis"            , "Enriched in pigmented"   ,
-  "Storage: lipid droplet" , "Enriched in pigmented"   ,
-  "Storage: glycogen"      , "Enriched in unpigmented" ,
-  "Bile acid metabolism"   , "Enriched in unpigmented" ,
-  "Catabolism: AA"         , "Enriched in unpigmented" ,
-  "Catabolism: FA"         , "Enriched in unpigmented" ,
-  "Catabolism: carb"       , "Enriched in unpigmented" ,
-  "Synthesis: AA"          , "Enriched in unpigmented" ,
-  "Synthesis: cholesterol" , "Enriched in unpigmented" ,
-  "Endocrine"              , "Enriched in unpigmented" ,
-  "Urea cycle"             , "Other"                   ,
-  "Phagocytosis"           , "Other"                   ,
-  "Reesterification"       , "Other"                   ,
-  "Detoxification"         , "Other"                   ,
-  "Synthesis: carb"        , "Other"                   ,
-  "Luminal hydrolysis"     , "Other"                   ,
-  "Antimicrobial"          , "Other"                   ,
-  "Lysosomal digestion"    , "Other"                   ,
-  "Uptake: micronutrient"  , "Other"                   ,
-  "Export: carb"           , "Other"                   ,
-  "Efflux: cholesterol"    , "Other"                   ,
-  "Transport: lipid"       , "Other"                   ,
-  "Chylomicron assembly"   , "Other"
+  ~label                        , ~group                        ,
+  "BB hydrolysis: peptide"      , "Enriched in **pigmented**"   ,
+  "BB hydrolysis: carb"         , "Enriched in **pigmented**"   ,
+  "Uptake: AA"                  , "Enriched in **pigmented**"   ,
+  "Uptake: carb"                , "Enriched in **pigmented**"   ,
+  "Uptake: lipid"               , "Enriched in **pigmented**"   ,
+  "Endocytosis"                 , "Enriched in **pigmented**"   ,
+  "Storage: lipid droplet"      , "Enriched in **pigmented**"   ,
+  "Storage: glycogen"           , "Enriched in **unpigmented**" ,
+  "Bile acid metabolism"        , "Enriched in **unpigmented**" ,
+  "Catabolism: AA"              , "Enriched in **unpigmented**" ,
+  "Catabolism: FA"              , "Enriched in **unpigmented**" ,
+  "Catabolism: carb"            , "Enriched in **unpigmented**" ,
+  "Synthesis: AA"               , "Enriched in **unpigmented**" ,
+  "Synthesis: cholesterol"      , "Enriched in **unpigmented**" ,
+  "Endocrine"                   , "Enriched in **unpigmented**" ,
+  "Urea cycle"                  , "Other"                       ,
+  "Phagocytosis"                , "Other"                       ,
+  "Reesterification"            , "Other"                       ,
+  "Detoxification"              , "Other"                       ,
+  "Synthesis: carb"             , "Other"                       ,
+  "Luminal hydrolysis"          , "Other"                       ,
+  "Antimicrobial"               , "Other"                       ,
+  "Lysosomal digestion"         , "Other"                       ,
+  "Uptake: micronutrient"       , "Other"                       ,
+  "Export: carb"                , "Other"                       ,
+  "Efflux: cholesterol"         , "Other"                       ,
+  "Intracell. transport: lipid" , "Other"                       ,
+  "Chylomicron assembly"        , "Other"
 )
 
 stopifnot(length(fn4_order[!fn4_order %in% fn4_order_manual$label]) == 0)
@@ -239,14 +239,8 @@ zuss_fn4 |>
   left_join(fn4_order_manual, by = "label") |>
   mutate(label = fct(label, fn4_order_manual$label)) |>
   ggplot(aes(sample, label, fill = zuss)) +
-  geom_tile(color = "white") +
-  facet_wrap(
-    ncol = 1,
-    vars(group),
-    space = "free_y",
-    scales = "free_y",
-    labeller = label_wrap_gen(50),
-  ) +
+  geom_tile(color = "white", linewidth = lwd_thin) +
+  facet_wrap(vars(group), ncol = 1, space = "free_y", scales = "free_y") +
   scale_fill_gradient2(
     low = clrs_gradient2$low,
     mid = clrs_gradient2$mid,
@@ -276,18 +270,17 @@ zuss_fn4 |>
     legend.key.height = unit(0.25, "line"),
     legend.box.spacing = unit(0.1, "lines"),
     strip.clip = "off",
-    strip.text = element_text(
+    strip.text = element_markdown(
       hjust = 0,
       vjust = 0,
-      margin = margin(b = 3),
-      face = 2
+      margin = margin(b = 1),
     )
   )
 
 quartz(
   type = "pdf",
   file = here(resdir, "module-heatmap.pdf"),
-  width = 1.4,
+  width = 1.42,
   height = 4
 )
 print(last_plot())
