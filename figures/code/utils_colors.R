@@ -5,9 +5,11 @@ clrs_pigment <- list(
   white = "#ffffff"
 )
 
-clrs_pigment_small <- lapply(clrs_pigment, function(x) {
-  ifelse(x == "#ffffff", x, colorspace::darken(x, amount = 0.2))
-})
+clrs_pigment_small <- list(
+  dark = "#f8a964",
+  light = "#f7de6e",
+  white = "#ffffff"
+)
 
 clrs_gradient2 <- list(low = "#578dd3", mid = "white", high = "#dd6e68")
 # #4575b4 #d73027
