@@ -64,11 +64,12 @@ plot_dotplot2 <- function(
     purrr::map(dp_add_title, .title = .title)
 }
 
-#' Collapse Seurat object from gene level to HOG level by aggregating counts
+#' Collapse Seurat object from gene level to geneset level by aggregating counts
 #'
 #' @param .obj Seurat object
-#' @param .ids dataframe with one column "hog_name". Rownames should be in gene ids of .obj
-collapse_hogs <- function(.obj, .ids) {
+#' @param .ids dataframe with one column named .group_col. Rownames should be gene ids of .obj
+#' @param .group_col name of the column in .ids to group by
+collapse_genesets <- function(.obj, .ids, .group_col) {
   # Helper to protect/restore underscores from Seurat mangling
   protect <- function(x) gsub("_", "..", x)
   restore <- function(x) gsub("\\.\\.", "_", x)
@@ -86,29 +87,29 @@ collapse_hogs <- function(.obj, .ids) {
   rownames(tcts) <- protect(rownames(tcts))
   colnames(tcts) <- protect(colnames(tcts))
   rownames(.ids) <- protect(rownames(.ids))
-  .ids$hog_name <- protect(.ids$hog_name)
+  .ids[[.group_col]] <- protect(.ids[[.group_col]])
 
   y <- CreateSeuratObject(tcts, meta.data = .ids)
 
-  agghog <- AggregateExpression(
+  agg <- AggregateExpression(
     y,
     assays = DefaultAssay(y),
     return.seurat = TRUE,
-    group.by = "hog_name"
+    group.by = .group_col
   ) |>
     LayerData("counts") |>
     t()
 
-  # Restore barcodes only (HOG names stay protected for final CreateSeuratObject)
-  colnames(agghog) <- restore(colnames(agghog))
+  # Restore barcodes only (geneset names stay protected for final CreateSeuratObject)
+  colnames(agg) <- restore(colnames(agg))
 
-  if (!setequal(colnames(agghog), colnames(x))) {
+  if (!setequal(colnames(agg), colnames(x))) {
     stop("Mismatched barcode ids")
   }
-  agghog <- agghog[, colnames(x), drop = FALSE]
-  stopifnot(identical(colnames(agghog), rownames(x[[]])))
+  agg <- agg[, colnames(x), drop = FALSE]
+  stopifnot(identical(colnames(agg), rownames(x[[]])))
 
-  z <- CreateSeuratObject(agghog, meta.data = x[[]])
+  z <- CreateSeuratObject(agg, meta.data = x[[]])
   return(z)
 }
 
@@ -261,7 +262,7 @@ for (i in seq_len(nrow(fn4_nest))) {
 # plot individual HOGs ========================================================
 ###############################################################################
 
-bf_fn4_hog <- collapse_hogs(bf_fn4, fn4_hogs) |>
+bf_fn4_hog <- collapse_genesets(bf_fn4, fn4_hogs, "hog_name") |>
   SetIdent(value = "cluster_v1") |>
   NormalizeData()
 
@@ -381,52 +382,7 @@ dev.off()
 # plot aggregated by fn4 ======================================================
 ###############################################################################
 
-collapse_fnmod <- function(.obj, .ids) {
-  # Helper to protect/restore underscores from Seurat mangling
-  protect <- function(x) gsub("_", "..", x)
-  restore <- function(x) gsub("\\.\\.", "_", x)
-
-  shared <- intersect(rownames(.obj), rownames(.ids))
-  if (length(shared) == 0) {
-    stop("No shared gene ids between .obj and .ids")
-  }
-
-  x <- subset(.obj, features = shared)
-  tcts <- t(LayerData(x, "counts"))
-  .ids <- .ids[colnames(tcts), , drop = FALSE]
-
-  # Protect all names from _ -> - mangling
-  rownames(tcts) <- protect(rownames(tcts))
-  colnames(tcts) <- protect(colnames(tcts))
-  rownames(.ids) <- protect(rownames(.ids))
-  .ids$fn4_id <- protect(.ids$fn4_id)
-
-  y <- CreateSeuratObject(tcts, meta.data = .ids)
-
-  agghog <- AggregateExpression(
-    y,
-    assays = DefaultAssay(y),
-    return.seurat = TRUE,
-    group.by = "fn4_id"
-  ) |>
-    LayerData("counts") |>
-    t()
-
-  # Restore barcodes only (HOG names stay protected for final CreateSeuratObject)
-  colnames(agghog) <- restore(colnames(agghog))
-
-  if (!setequal(colnames(agghog), colnames(x))) {
-    stop("Mismatched barcode ids")
-  }
-  agghog <- agghog[, colnames(x), drop = FALSE]
-  stopifnot(identical(colnames(agghog), rownames(x[[]])))
-
-  z <- CreateSeuratObject(agghog, meta.data = x[[]])
-  return(z)
-}
-
-
-bf_fnmod_collapse <- collapse_fnmod(bf_fn4, fn4_genes) |>
+bf_fnmod_collapse <- collapse_genesets(bf_fn4, fn4_genes, "fn4_id") |>
   SetIdent(value = "cluster_v1") |>
   NormalizeData()
 
