@@ -294,4 +294,52 @@ quartz(
 print(last_plot())
 dev.off()
 
+###############################################################################
+# plot crob enriched modules: individual genes ================================
+###############################################################################
+
+cr_enriched_fn4 <- fn4 |>
+  inner_join(fn4_order_manual, by = "label") |>
+  select(id, label, group, genes) |>
+  separate_longer_delim(genes, "; ") |>
+  mutate(label = fct(label, levels(fn4_order_manual$label)))
+
+dp_extract_dotplot_data(.obj = ec, .features = unique(cr_enriched_fn4$genes)) |>
+  rename(domain = id) |>
+  left_join(cr_enriched_fn4, by = c("features.plot" = "genes")) |>
+  mutate(max_pct = max(pct.exp), .by = features.plot) |>
+  filter(max_pct > 20) |>
+  ggplot() +
+  geom_point(
+    aes(domain, features.plot, size = pct.exp, color = avg.exp.scaled),
+    shape = 16,
+    stroke = 0
+  ) +
+  facet_wrap(
+    vars(label),
+    scales = "free",
+    space = "free_y",
+    strip.position = "top",
+    ncol = 1
+  ) +
+  scale_size(range = c(0, 6)) +
+  scale_color_gradient(low = "white", high = pal_okabe[[5]]) +
+  scale_y_discrete(labels = function(y) str_trunc(y, 50), position = "right") +
+  theme_half_open_grid() +
+  theme(
+    strip.text.x.top = element_markdown(),
+    axis.title = element_blank(),
+    legend.position = "left",
+    strip.clip = "off"
+  )
+
+quartz(
+  type = "pdf",
+  file = here(resdir, "dotplot_genes_fn4-mods-crob-enriched.pdf"),
+  width = 3.5,
+  height = 16
+)
+print(last_plot())
+dev.off()
+
 # end =========================================================================
