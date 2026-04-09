@@ -360,7 +360,7 @@ print(
 )
 dev.off()
 
-## only plotthe modules enriched in ciona
+## only plot the modules enriched in ciona
 
 quartz(
   type = "pdf",
