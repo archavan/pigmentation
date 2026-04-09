@@ -34,7 +34,7 @@ genes <- read_tsv(here(genomedir, "results/genes/gene-display-names.tsv"))
 fnmod <- read_tsv(here(genomedir, "results/genes/functional-modules_gut.tsv"))
 
 fn <- fnmod |>
-  select(module.1, module.2, module.3, module.4, ortholog) |>
+  select(label, module.1, module.2, module.3, module.4, ortholog) |>
   filter(!is.na(ortholog)) |>
   mutate(
     mod = pmap_chr(
@@ -42,7 +42,27 @@ fn <- fnmod |>
       ~ c(...) |> na.omit() |> paste0(collapse = " - ")
     )
   ) |>
-  summarize(gene_ids = list(ortholog) |> unique(), .by = mod)
+  summarize(gene_ids = list(ortholog) |> unique(), .by = c(label, mod))
+
+# used in crob
+fn4_order_manual <- tribble(
+  ~label                   , ~group                           ,
+  "BB hydrolysis: peptide" , "Enriched in<br>**pigmented**"   ,
+  "BB hydrolysis: carb"    , "Enriched in<br>**pigmented**"   ,
+  "Uptake: AA"             , "Enriched in<br>**pigmented**"   ,
+  "Uptake: carb"           , "Enriched in<br>**pigmented**"   ,
+  "Uptake: lipid"          , "Enriched in<br>**pigmented**"   ,
+  "Endocytosis"            , "Enriched in<br>**pigmented**"   ,
+  "Storage: lipid droplet" , "Enriched in<br>**pigmented**"   ,
+  "Synthesis: cholesterol" , "Enriched in<br>**unpigmented**" ,
+  "Bile acid metabolism"   , "Enriched in<br>**unpigmented**" ,
+  "Catabolism: carb"       , "Enriched in<br>**unpigmented**" ,
+  "Storage: glycogen"      , "Enriched in<br>**unpigmented**" ,
+  "Synthesis: AA"          , "Enriched in<br>**unpigmented**" ,
+  "Catabolism: FA"         , "Enriched in<br>**unpigmented**" ,
+  "Catabolism: AA"         , "Enriched in<br>**unpigmented**" ,
+  "Endocrine"              , "Enriched in<br>**unpigmented**"
+)
 
 ###############################################################################
 # prepare for plotting ========================================================
@@ -283,7 +303,7 @@ walk2(
 )
 
 ###############################################################################
-# plot aggregated (median z tpm for all genes in module) ======================
+# plot aggregated uss =========================================================
 ###############################################################################
 
 calculate_aggregated_uss <- function(.genes) {
@@ -336,6 +356,37 @@ print(
       cluster_cols = FALSE,
       cluster_rows = TRUE,
       scale = "none"
+    )
+)
+dev.off()
+
+## only plotthe modules enriched in ciona
+
+quartz(
+  type = "pdf",
+  file = here(
+    resdir,
+    "module-heatmap_aggregated-uss_unscaled_crob-enriched.pdf"
+  ),
+  width = 3.9,
+  height = 3.2
+)
+print(
+  fn |>
+    inner_join(fn4_order_manual, by = "label") |>
+    mutate(label = fct(label, fn4_order_manual$label)) |>
+    unnest(agg_uss) |>
+    select(label, tissue_short, median_uss) |>
+    pivot_wider(
+      id_cols = "label",
+      names_from = "tissue_short",
+      values_from = "median_uss"
+    ) |>
+    column_to_rownames("label") |>
+    pheatmap::pheatmap(
+      cluster_cols = FALSE,
+      cluster_rows = TRUE,
+      scale = "row"
     )
 )
 dev.off()
