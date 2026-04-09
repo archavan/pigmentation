@@ -40,7 +40,7 @@ genes <- read_tsv(here(genomedir, "results/genes/gene-display-names.tsv"))
 fnmod <- read_tsv(here(genomedir, "results/genes/functional-modules_gut.tsv"))
 
 fn <- fnmod |>
-  select(module.1, module.2, module.3, module.4, ortholog) |>
+  select(label, module.1, module.2, module.3, module.4, ortholog) |>
   filter(!is.na(ortholog)) |>
   mutate(
     mod = pmap_chr(
@@ -48,7 +48,27 @@ fn <- fnmod |>
       ~ c(...) |> na.omit() |> paste0(collapse = " - ")
     )
   ) |>
-  summarize(gene_ids = list(ortholog) |> unique(), .by = mod)
+  summarize(gene_ids = list(ortholog) |> unique(), .by = c(label, mod))
+
+# used in crob figure panel
+fn4_order_manual <- tribble(
+  ~label                   , ~group                           ,
+  "BB hydrolysis: peptide" , "Enriched in<br>**pigmented**"   ,
+  "BB hydrolysis: carb"    , "Enriched in<br>**pigmented**"   ,
+  "Uptake: AA"             , "Enriched in<br>**pigmented**"   ,
+  "Uptake: carb"           , "Enriched in<br>**pigmented**"   ,
+  "Uptake: lipid"          , "Enriched in<br>**pigmented**"   ,
+  "Endocytosis"            , "Enriched in<br>**pigmented**"   ,
+  "Storage: lipid droplet" , "Enriched in<br>**pigmented**"   ,
+  "Storage: glycogen"      , "Enriched in<br>**unpigmented**" ,
+  "Bile acid metabolism"   , "Enriched in<br>**unpigmented**" ,
+  "Catabolism: AA"         , "Enriched in<br>**unpigmented**" ,
+  "Catabolism: FA"         , "Enriched in<br>**unpigmented**" ,
+  "Catabolism: carb"       , "Enriched in<br>**unpigmented**" ,
+  "Synthesis: AA"          , "Enriched in<br>**unpigmented**" ,
+  "Synthesis: cholesterol" , "Enriched in<br>**unpigmented**" ,
+  "Endocrine"              , "Enriched in<br>**unpigmented**"
+)
 
 ###############################################################################
 # prepare for plotting ========================================================
@@ -338,6 +358,50 @@ print(
       scale = "none"
     )
 )
+dev.off()
+
+###############################################################################
+# plot individual genes for fnmods enriched in segments =======================
+###############################################################################
+
+z_uss_long <- uss_long |>
+  summarize(median_uss = median(uss), .by = c(gene_id, tissue_short)) |>
+  mutate(z_uss = scale(median_uss)[, 1], .by = c(gene_id))
+
+fn |>
+  inner_join(fn4_order_manual, by = "label") |>
+  mutate(label = fct(label, fn4_order_manual$label)) |>
+  unnest_longer(col = "gene_ids") |>
+  inner_join(z_uss_long, by = c("gene_ids" = "gene_id")) |>
+  ggplot(aes(tissue_short, gene_ids, fill = z_uss)) +
+  geom_tile(color = "white") +
+  facet_wrap(
+    vars(label),
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  scale_fill_gradient2(low = "blue", high = "red") +
+  scale_y_discrete(position = "right", labels = function(x) {
+    str_trunc(display_names[x], 90, "right")
+  }) +
+  theme_half_open_nogrid() +
+  theme(
+    legend.position = "left",
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    strip.clip = "off"
+  )
+
+quartz(
+  type = "pdf",
+  file = here(
+    resdir,
+    "module-heatmap_genes_scaled-median-uss_crob-enriched.pdf"
+  ),
+  width = 7.7,
+  height = 16
+)
+print(last_plot())
 dev.off()
 
 # end =========================================================================
