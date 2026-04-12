@@ -55,6 +55,7 @@ rsconnect/
 **/data
 **/results
 temp.*
+.positai
 
 *.pdf
 *.png
@@ -70,6 +71,4 @@ temp.*
 *.lif
 *.docx
 *.html
-
-
 
