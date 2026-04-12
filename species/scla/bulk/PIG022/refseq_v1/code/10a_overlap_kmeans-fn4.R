@@ -73,10 +73,7 @@ p_thresh <- 0.05
 
 ## define universe ============================================================
 
-universe <- tpm |>
-  column_to_rownames("gene_id") |>
-  (function(x) x[rowSums(x) > 0, ])() |>
-  rownames()
+universe <- uss$gene_id
 
 fn <- fn |>
   mutate(gene_ids = map(gene_ids, ~ .x[.x %in% universe]))
