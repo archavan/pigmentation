@@ -54,6 +54,7 @@ rsconnect/
 **/docs
 **/data
 **/results
+**/expts
 temp.*
 .positai
 
