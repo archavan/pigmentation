@@ -6,17 +6,20 @@ format:
     theme: cosmo
     self-contained: true
 toc: true
-editor:
-  source:
-    chunk_output: inline
+editor: source
+editor_options:
+  chunk_output_type: inline
 fontsize: 0.95em
 ---
 
-Started: `r Sys.Date()`  
+Started: 2026-04-11  
 Last edited: `r format(Sys.time())`
 
 # Setup
-```{r, message=FALSE, warning=FALSE}
+```{r}
+#| message: false
+#| warning: false
+
 knitr::opts_chunk$set(dpi = 300, collapse = TRUE, comment = "#>")
 
 library(tidyverse)
@@ -81,9 +84,7 @@ expressed_genes_5seg <- tpm_all_long |>
 ```{r}
 uss_5seg <- tpm_all_long |>
   filter(gene_id %in% expressed_genes_5seg) |>
-  group_by(gene_id, rep_id) |>
-  mutate(uss = l1_normalize(tpm)) |>
-  ungroup()
+  mutate(uss = l1_normalize(tpm), .by = c(gene_id, rep_id))
 ```
 
 ## Flag S-contamination genes
@@ -109,7 +110,7 @@ length(stm_spillover_genes)
 #| fig-width: 4
 #| out-width: "60%"
 
-median_uss_by_segment |> 
+median_uss_by_segment |>
   ggplot(aes(median_uss)) +
   geom_histogram(color = "white") +
   facet_grid(rows = vars(tissue_short)) +
@@ -123,10 +124,10 @@ median_uss_by_segment |>
 ```{r}
 #| fig-width: 4
 #| fig-height: 3
-#| out-width: "60%"  
+#| out-width: "60%"
 
 median_uss_by_segment |>
-  filter(gene_id %in% stm_spillover_genes) |> 
+  filter(gene_id %in% stm_spillover_genes) |>
   ggplot(aes(x = tissue_short, y = median_uss, group = gene_id)) +
   geom_line(alpha = 0.15) +
   theme_bw() +
@@ -145,7 +146,7 @@ median_uss_by_segment |>
   ) |>
   filter(gene_id %in% stm_spillover_genes) |>
   arrange(desc(S)) |>
-  relocate(S, .after = gene_id) |> 
+  relocate(S, .after = gene_id) |>
   write_csv(here(resdir, "stm-spillover-genes.csv"))
 ```
 
@@ -165,7 +166,6 @@ tpm_long <- tpm_all_long |>
 # expressed over threshold in at least one sample in all replicates
 expressed_genes <- tpm_long |>
   summarize(max_tpm = max(tpm), .by = c(gene_id, rep_id)) |>
-  arrange(desc(max_tpm)) |>
   summarize(all_over_thresh = all(max_tpm > tpm_thresh), .by = gene_id) |>
   filter(all_over_thresh) |>
   pull(gene_id)
@@ -184,13 +184,11 @@ n_distinct(tpm_long$gene_id)
 
 ```{r}
 uss_long <- tpm_long |>
-  group_by(gene_id, rep_id) |>
-  mutate(uss = l1_normalize(tpm)) |>
-  ungroup()
+  mutate(uss = l1_normalize(tpm), .by = c(gene_id, rep_id))
 
 stopifnot(
   "USS values do not sum to 1 for all gene_id/rep_id groups" = uss_long |>
-    summarise(sum_uss = sum(uss), .by = c(gene_id, rep_id)) |>
+    summarize(sum_uss = sum(uss), .by = c(gene_id, rep_id)) |>
     pull(sum_uss) |>
     near(1) |>
     all()
@@ -208,7 +206,7 @@ uss_wide <- uss_long |>
     values_from = "uss"
   )
 
-if(any(uss_wide$gene_id %in% stm_spillover_genes)) {
+if (any(uss_wide$gene_id %in% stm_spillover_genes)) {
   stop("Some stomach spillover genes are still present in the data!")
 }
 
@@ -217,6 +215,6 @@ write_csv(uss_wide, here(basedir, "data/03_compiled/uss_intestine.csv"))
 
 # Session Info
 
-```{r session_info, eval=TRUE}
+```{r}
 sessionInfo()
 ```
