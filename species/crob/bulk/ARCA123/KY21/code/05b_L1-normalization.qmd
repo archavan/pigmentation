@@ -1,0 +1,222 @@
+---
+title: "L1 normalization"
+author: Arun Chavan
+format: 
+  html:
+    theme: cosmo
+    self-contained: true
+toc: true
+editor:
+  source:
+    chunk_output: inline
+fontsize: 0.95em
+---
+
+Started: `r Sys.Date()`  
+Last edited: `r format(Sys.time())`
+
+# Setup
+```{r, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(dpi = 300, collapse = TRUE, comment = "#>")
+
+library(tidyverse)
+library(here)
+library(glue)
+
+basedir <- here("species/crob/bulk/ARCA123/KY21")
+resdir <- here(basedir, "results/05b_L1-normalization")
+fs::dir_create(resdir)
+```
+
+# Data
+
+```{r}
+#| message: false
+#| warning: false
+
+samples_all <- read_csv(here(basedir, "data/00_metadata/samples.csv"))
+tpm_all <- read_csv(here(basedir, "data/03_compiled/tpm_no-testis.csv"))
+
+tpm_all <- tpm_all |>
+  rename_with(
+    function(x) samples_all$tissue_name[match(x, samples_all$sample_name)],
+    .cols = !starts_with("gene_id")
+  )
+
+tpm_all_long <- tpm_all |>
+  pivot_longer(cols = -gene_id, names_to = "tissue_name", values_to = "tpm") |>
+  separate(tissue_name, into = c("tissue_short", "rep_id"), sep = "_") |>
+  mutate(tissue_short = fct(tissue_short, c("S", "I1", "I2", "I3", "I4")))
+
+```
+
+
+# Identify stomach contamination genes in I1
+
+The S-I1 dissection boundary is imprecise, so highly expressed S genes can
+show leakage into I1. After excluding S and L1-normalizing across I segments,
+these genes appear I1-enriched. We identify them using L1 normalization across
+all 5 segments: contaminating genes have USS_S close to 1 and USS_I1 >> USS_I2-I4.
+
+```{r}
+l1_normalize <- function(x) {
+  x / sum(abs(x))
+}
+
+tpm_thresh <- 5
+```
+
+```{r}
+# Expression filter (all 5 segments)
+# in every replicate to prevent undefined USS from all-zero replicates
+expressed_genes_5seg <- tpm_all_long |>
+  summarize(max_tpm = max(tpm), .by = c(gene_id, rep_id)) |>
+  summarize(all_over_thresh = all(max_tpm > tpm_thresh), .by = gene_id) |>
+  filter(all_over_thresh) |>
+  pull(gene_id)
+```
+
+## L1 normalize across all 5 segments
+
+```{r}
+uss_5seg <- tpm_all_long |>
+  filter(gene_id %in% expressed_genes_5seg) |>
+  group_by(gene_id, rep_id) |>
+  mutate(uss = l1_normalize(tpm)) |>
+  ungroup()
+```
+
+## Flag S-contamination genes
+
+```{r}
+uss_S_thresh <- 0.75
+
+median_uss_by_segment <- uss_5seg |>
+  summarize(median_uss = median(uss), .by = c(gene_id, tissue_short))
+
+stm_spillover_genes <- median_uss_by_segment |>
+  filter(tissue_short == "S") |>
+  filter(median_uss > uss_S_thresh) |>
+  pull(gene_id)
+
+length(stm_spillover_genes)
+```
+
+## Diagnostic plots
+
+```{r}
+#| fig-height: 5
+#| fig-width: 4
+#| out-width: "60%"
+
+median_uss_by_segment |> 
+  ggplot(aes(median_uss)) +
+  geom_histogram(color = "white") +
+  facet_grid(rows = vars(tissue_short)) +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+```{r}
+#| fig-width: 4
+#| fig-height: 3
+#| out-width: "60%"  
+
+median_uss_by_segment |>
+  filter(gene_id %in% stm_spillover_genes) |> 
+  ggplot(aes(x = tissue_short, y = median_uss, group = gene_id)) +
+  geom_line(alpha = 0.15) +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+## Save flagged gene list
+
+```{r}
+median_uss_by_segment |>
+  pivot_wider(
+    names_from = tissue_short,
+    values_from = median_uss
+  ) |>
+  filter(gene_id %in% stm_spillover_genes) |>
+  arrange(desc(S)) |>
+  relocate(S, .after = gene_id) |> 
+  write_csv(here(resdir, "stm-spillover-genes.csv"))
+```
+
+# L1 normalization (intestine only)
+
+Since all TPM values are positive, L1 normalization in this case is identical to unit sum scaling.
+
+```{r}
+tpm_long <- tpm_all_long |>
+  filter(tissue_short != "S") |>
+  mutate(tissue_short = fct_drop(tissue_short))
+```
+
+## Remove lowly expressed genes and stomach spillover genes
+
+```{r}
+# expressed over threshold in at least one sample in all replicates
+expressed_genes <- tpm_long |>
+  summarize(max_tpm = max(tpm), .by = c(gene_id, rep_id)) |>
+  arrange(desc(max_tpm)) |>
+  summarize(all_over_thresh = all(max_tpm > tpm_thresh), .by = gene_id) |>
+  filter(all_over_thresh) |>
+  pull(gene_id)
+```
+
+
+```{r}
+tpm_long <- tpm_long |>
+  filter(!gene_id %in% stm_spillover_genes) |>
+  filter(gene_id %in% expressed_genes)
+
+n_distinct(tpm_long$gene_id)
+```
+
+## Normalization
+
+```{r}
+uss_long <- tpm_long |>
+  group_by(gene_id, rep_id) |>
+  mutate(uss = l1_normalize(tpm)) |>
+  ungroup()
+
+stopifnot(
+  "USS values do not sum to 1 for all gene_id/rep_id groups" = uss_long |>
+    summarise(sum_uss = sum(uss), .by = c(gene_id, rep_id)) |>
+    pull(sum_uss) |>
+    near(1) |>
+    all()
+)
+```
+
+# Save data
+
+```{r}
+uss_wide <- uss_long |>
+  pivot_wider(
+    id_cols = gene_id,
+    names_from = c("tissue_short", "rep_id"),
+    names_sep = "_",
+    values_from = "uss"
+  )
+
+if(any(uss_wide$gene_id %in% stm_spillover_genes)) {
+  stop("Some stomach spillover genes are still present in the data!")
+}
+
+write_csv(uss_wide, here(basedir, "data/03_compiled/uss_intestine.csv"))
+```
+
+# Session Info
+
+```{r session_info, eval=TRUE}
+sessionInfo()
+```
