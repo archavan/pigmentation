@@ -13,7 +13,7 @@ library(ggtext)
 basedir <- here("species/crob/bulk/ARCA123/KY21")
 genomedir <- here("species/crob/genome/KY21")
 
-kmeansdir <- here(basedir, "results/07a_cluster-genes_int-samples/k10")
+kmeansdir <- here(basedir, "results/07b_cluster-genes_int-samples_L1-norm/k12")
 
 resdir <- here(basedir, "results/16a_overlap_kmeans-fn4")
 fs::dir_create(here(resdir))
@@ -57,12 +57,7 @@ tpm <- tpm |>
   )
 
 ## kmeans clustering results ====
-km <- list.files(here(kmeansdir, "genes")) |>
-  set_names() |>
-  map(~ read_csv(here(kmeansdir, "genes", .x))) |>
-  bind_rows(.id = "cluster") |>
-  mutate(cluster = str_remove(cluster, ".csv")) |>
-  mutate(cluster = str_replace(cluster, "cluster-", "kcr")) |>
+km <- read_tsv(here(kmeansdir, "cluster-genes.tsv")) |>
   summarize(gene_ids = list(gene_id) |> unique(), .by = cluster)
 
 ###############################################################################
@@ -73,10 +68,7 @@ p_thresh <- 0.05
 
 ## define universe ============================================================
 
-universe <- tpm |>
-  column_to_rownames("gene_id") |>
-  (function(x) x[rowSums(x) > 0, ])() |>
-  rownames()
+universe <- uss$gene_id
 
 fn <- fn |>
   mutate(gene_ids = map(gene_ids, ~ .x[.x %in% universe]))

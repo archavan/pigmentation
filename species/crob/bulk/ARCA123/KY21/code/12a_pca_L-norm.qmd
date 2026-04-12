@@ -38,7 +38,7 @@ source(here(basedir, "code/utilities_ggplot.R"))
 tpm <- read_csv(here(basedir, "data/03_compiled/tpm_no-testis.csv"))
 uss <- read_csv(here(basedir, "data/03_compiled/uss_intestine.csv"))
 
-samples <- read_csv(here(basedir, "data/00_metadata/samples.csv")) |> 
+samples <- read_csv(here(basedir, "data/00_metadata/samples.csv")) |>
   filter(tissue_short != "S")
 tissue_order <- c("I1", "I2", "I3", "I4")
 samples <- mutate(samples, tissue_short = fct(tissue_short, tissue_order))
@@ -51,21 +51,22 @@ display_names <- deframe(select(genes, gene_id, display_name))
 # PCA on intestine samples
 
 ```{r}
-pca_int <- uss %>% 
-  column_to_rownames("gene_id") %>% 
-  t() %>% 
+pca_int <- uss %>%
+  column_to_rownames("gene_id") %>%
+  t() %>%
   prcomp()
 
 pca_int_var <- summary(pca_int)[[6]][2, ] * 100
-pca_int_x <- pca_int$x %>% 
-  as.data.frame() %>% 
-  rownames_to_column("tissue_name") %>% 
+pca_int_x <- pca_int$x %>%
+  as.data.frame() %>%
+  rownames_to_column("tissue_name") %>%
   right_join(x = samples, y = ., by = "tissue_name")
 ```
 
 ```{r}
-#| fig-height: 6
-#| fig-width: 6
+#| fig-height: 5
+#| fig-width: 5
+#| out-width: "60%"
 plot(pca_int_var, xlab = "PC", ylab = "% Variance Explained")
 ```
 
@@ -93,7 +94,7 @@ It doesn't look like there is any PC that's perfectly and strongly correlated wi
 #| fig-width: 9
 
 plot_pc_against_segment <- function(x, .pc) {
-  ggplot(x, aes(tissue_short, .data[[.pc]],  fill = colour)) + 
+  ggplot(x, aes(tissue_short, .data[[.pc]], fill = colour)) +
     geom_point(shape = 21, size = 2) +
     scale_fill_identity() +
     theme_bw_2()
@@ -126,26 +127,31 @@ wrap_plots(map(1:12, ~ plot_pc_against_rin(pca_int_x, paste0("PC", .x)))) +
 #| fig-height: 8
 #| fig-width: 8
 plot_top_loading_genes <- function(x, .pc, .n = 10) {
-  x$rotation %>% 
-    as.data.frame() %>% 
-    rownames_to_column("gene_id") %>% 
-    select(all_of(c("gene_id", .pc))) %>% 
-    mutate(direction = ifelse(.data[[.pc]] > 0, "pos", "neg")) %>% 
-    nest(.by = direction) %>% 
-    mutate(data = map(data,
-                      ~ .x %>% 
-                        slice_max(abs(.data[[.pc]]), n = .n))) %>% 
-    unnest(cols = c(data)) %>% 
-    arrange(.data[[.pc]]) %>% 
-    mutate(gene_id = fct_inorder(gene_id)) %>% 
+  x$rotation %>%
+    as.data.frame() %>%
+    rownames_to_column("gene_id") %>%
+    select(all_of(c("gene_id", .pc))) %>%
+    mutate(direction = ifelse(.data[[.pc]] > 0, "pos", "neg")) %>%
+    nest(.by = direction) %>%
+    mutate(
+      data = map(
+        data,
+        ~ .x %>%
+          slice_max(abs(.data[[.pc]]), n = .n)
+      )
+    ) %>%
+    unnest(cols = c(data)) %>%
+    arrange(.data[[.pc]]) %>%
+    mutate(gene_id = fct_inorder(gene_id)) %>%
     ggplot() +
     geom_vline(xintercept = 0, linetype = 2, color = "grey") +
     geom_point(aes(.data[[.pc]], gene_id)) +
     geom_segment(aes(x = 0, xend = .data[[.pc]], y = gene_id, yend = gene_id)) +
-    scale_y_discrete(position = "right", 
-                     labels = function(y) str_trunc(display_names[y], 72)) +
+    scale_y_discrete(position = "right", labels = function(y) {
+      str_trunc(display_names[y], 72)
+    }) +
     labs(x = "Loading", title = .pc) +
-    theme_bw_2() 
+    theme_bw_2()
 }
 
 plot_top_loading_genes(pca_int, "PC1", 20)
