@@ -110,9 +110,7 @@ p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
     axis.line = element_line(linewidth = lwd_thin)
   )
 
-quartz(type = "pdf", file = here(resdir, "pca.pdf"), width = 1.5, height = 1.2)
-print(p_pca)
-dev.off()
+save_quartz(here(resdir, "pca.pdf"), .width = 1.5, .height = 1.2, p_pca)
 
 ###############################################################################
 # hierarchical clustering =====================================================
@@ -141,14 +139,7 @@ p_pv <- ggtree(pv$hclust, linewidth = 0.35) %<+%
     axis.text = element_blank()
   )
 
-quartz(
-  type = "pdf",
-  file = here(resdir, "hclust.pdf"),
-  width = 1.3,
-  height = 1.35
-)
-print(last_plot())
-dev.off()
+save_quartz(here(resdir, "hclust.pdf"), .width = 1.3, .height = 1.35, p_pv)
 
 ###############################################################################
 # module heatmap ==============================================================
@@ -218,7 +209,8 @@ fn4_idmap <- fn4_idmap |>
 write_tsv(fn4_idmap, here(resdir, "module-expression-pattern.tsv"))
 
 # plot
-zuss_fn4 |>
+
+p_fn4_enriched <- zuss_fn4 |>
   inner_join(fn4_idmap, by = "label") |>
   mutate(
     label = fct(
@@ -265,7 +257,7 @@ zuss_fn4 |>
     legend.text = element_text(size = ts_small, margin = margin(t = 2)),
     legend.key.width = unit(0.75, "lines"),
     legend.key.height = unit(0.25, "line"),
-    legend.box.spacing = unit(0.2, "lines"),
+    legend.box.spacing = unit(0.1, "lines"),
     strip.clip = "off",
     strip.text = element_markdown(
       hjust = 0,
@@ -274,13 +266,11 @@ zuss_fn4 |>
     )
   )
 
-quartz(
-  type = "pdf",
-  file = here(resdir, "module-heatmap.pdf"),
-  width = 1.42,
-  height = 3
+save_quartz(
+  here(resdir, "module-heatmap.pdf"),
+  .width = 1.42,
+  .height = 3,
+  p_fn4_enriched
 )
-print(last_plot())
-dev.off()
 
 # end #########################################################################

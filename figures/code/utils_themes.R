@@ -53,4 +53,23 @@ theme_figure <- function(
     )
 }
 
+# save ========================================================================
+save_quartz <- function(
+  .filename,
+  .width,
+  .height,
+  .plot = get_last_plot(),
+  ...
+) {
+  quartz(
+    type = "pdf",
+    file = .filename,
+    width = .width,
+    height = .height,
+    ...
+  )
+  print(.plot)
+  dev.off()
+}
+
 ###############################################################################
