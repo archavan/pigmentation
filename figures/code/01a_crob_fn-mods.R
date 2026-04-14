@@ -207,13 +207,13 @@ other <- fn4_idmap$label[
 
 fn4_idmap <- fn4_idmap |>
   mutate(
-    group = case_when(
-      label %in% enriched_pigmented ~ "Enriched in<br>**pigmented**",
-      label %in% enriched_unpigmented ~ "Enriched in<br>**unpigmented**",
+    enriched_in = case_when(
+      label %in% enriched_pigmented ~ "pigmented",
+      label %in% enriched_unpigmented ~ "unpigmented",
       .default = "Other"
     )
   ) |>
-  arrange(group, id)
+  arrange(enriched_in, id)
 
 write_tsv(fn4_idmap, here(resdir, "module-expression-pattern.tsv"))
 
@@ -226,14 +226,17 @@ zuss_fn4 |>
       c(rev(enriched_pigmented), rev(enriched_unpigmented), other)
     )
   ) |>
-  filter(group != "Other") |>
+  filter(enriched_in != "Other") |>
   ggplot(aes(sample, label, fill = zuss)) +
   geom_tile(color = "white", linewidth = lwd_thin) +
   facet_wrap(
-    vars(group),
+    vars(enriched_in),
     ncol = 1,
     space = "free_y",
-    scales = "free_y"
+    scales = "free_y",
+    labeller = labeller(enriched_in = function(x) {
+      glue("Enriched in<br>**{x}**")
+    })
   ) +
   scale_fill_gradient2(
     low = clrs_gradient2$low,
@@ -257,12 +260,12 @@ zuss_fn4 |>
       hjust = 0.5,
       size = ts_small,
       angle = 0,
-      margin = margin(b = 1)
+      margin = margin(b = 2)
     ),
-    legend.text = element_text(size = ts_small),
+    legend.text = element_text(size = ts_small, margin = margin(t = 2)),
     legend.key.width = unit(0.75, "lines"),
     legend.key.height = unit(0.25, "line"),
-    legend.box.spacing = unit(0.1, "lines"),
+    legend.box.spacing = unit(0.2, "lines"),
     strip.clip = "off",
     strip.text = element_markdown(
       hjust = 0,
