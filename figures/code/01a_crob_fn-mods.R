@@ -14,16 +14,13 @@ library(ggtext)
 
 basedir <- here("figures")
 dir_cr <- here("species/crob/bulk/ARCA123/KY21")
-dir_cr_10x <- here(
-  "~/Dropbox/research/projects/endoderm/species/crob/10x/run-02/KY21"
-)
 dir_cr_genome <- here("species/crob/genome/KY21")
 
 resdir <- here(basedir, "results/01a_crob_fn-mods")
 fs::dir_create(resdir)
 
-source(here(basedir, "code/utils_themes.R"))
-source(here(basedir, "code/utils_colors.R"))
+source(here(basedir, "code/utils_themes.R"), local = TRUE)
+source(here(basedir, "code/utils_colors.R"), local = TRUE)
 
 ###############################################################################
 # data ========================================================================
@@ -32,6 +29,11 @@ source(here(basedir, "code/utils_colors.R"))
 ## genomic data ===============================================================
 genes <- read_tsv(here(dir_cr_genome, "results/genes/gene-display-names.tsv"))
 fn4 <- read_tsv(here(dir_cr_genome, "results/genes/functional-modules_gut.tsv"))
+
+fn4_idmap <- fn4 |>
+  select(id, label) |>
+  distinct() |>
+  arrange(id)
 
 ## bulk RNA-seq data ==========================================================
 
@@ -48,7 +50,7 @@ md_cr <- read_csv(here(dir_cr, "data/00_metadata/samples.csv")) |>
 
 tpm_cr <- read_csv(here(dir_cr, "data/03_compiled/tpm_no-testis.csv")) |>
   select(gene_id, all_of(md_cr$sample_name)) |>
-  rename_with(\(x) {
+  rename_with(function(x) {
     ifelse(
       x %in% md_cr$sample_name,
       md_cr$sample_id[match(x, md_cr$sample_name)],
@@ -63,11 +65,11 @@ uss_cr <- read_csv(here(dir_cr, "data/03_compiled/uss_intestine.csv"))
 ###############################################################################
 
 pca_int <- uss_cr |>
-  column_to_rownames("gene_id") %>%
+  column_to_rownames("gene_id") |>
   t() |>
   prcomp()
 
-pca_int_var <- summary(pca_int)[[6]][2, ] * 100
+pca_int_var <- summary(pca_int)$importance["Proportion of Variance", ] * 100
 pca_int_x <- pca_int$x |>
   as.data.frame() |>
   rownames_to_column("sample_id") |>
@@ -88,11 +90,11 @@ p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   geom_point(shape = 21, stroke = lwd_medium, aes(fill = pigment)) +
   geom_text(
     data = tribble(
-      ~PC1  , ~PC2  , ~sample ,
-      -4    ,  5.2  , "I3"    ,
-      -5    , -4    , "I1"    ,
-       4.75 , -2.75 , "I2"    ,
-       7.5  ,  3.5  , "I4"
+      ~PC1  , ~PC2 , ~sample ,
+      -8    ,    5 , "I3"    ,
+      -4    ,   -2 , "I1"    ,
+       4.75 ,   -4 , "I2"    ,
+       7    ,    4 , "I4"
     ),
     aes(x = PC1, y = PC2, label = sample),
     size = ts_base / .pt
@@ -115,10 +117,10 @@ dev.off()
 ###############################################################################
 # hierarchical clustering =====================================================
 ###############################################################################
-
+set.seed(2398853)
 pv <- uss_cr |>
   column_to_rownames("gene_id") |>
-  pvclust(parallel = TRUE)
+  pvclust(nboot = 1000, parallel = FALSE)
 
 p_pv <- ggtree(pv$hclust, linewidth = 0.35) %<+%
   md_cr +
@@ -161,12 +163,13 @@ sample_labels <- md_cr |>
   ) |>
   pull(label, name = sample)
 
-
+# calculate median USS for each module and then scale
 uss_long <- uss_cr |>
   pivot_longer(-gene_id, names_to = "sample_id", values_to = "uss") |>
   left_join(md_cr, by = "sample_id")
 
 zuss_fn4 <- fn4 |>
+  arrange(id) |>
   filter(!is.na(ortholog)) |>
   rename(gene_id = ortholog) |>
   select(id, label, gene_id, display_name) |>
@@ -174,70 +177,56 @@ zuss_fn4 <- fn4 |>
   summarize(uss = median(uss), .by = c(id, label, sample)) |>
   mutate(zuss = scale(uss)[, 1], .by = c(id, label))
 
-keep_mods <- zuss_fn4 |>
-  select(id, label) |>
-  distinct() |>
-  arrange(id) |>
-  filter(
-    !label %in%
-      c(
-        "Tissue barrier",
-        "Mucus barrier",
-        "Ciliary motility",
-        "Export: AA",
-        "Acidic digestion"
-      )
-  )
-
-
-zuss_fn4_wide <- zuss_fn4 |>
-  filter(label %in% keep_mods$label) |>
-  pivot_wider(id_cols = "label", names_from = "sample", values_from = "zuss") |>
-  column_to_rownames("label")
-
-fn4_order <- zuss_fn4_wide |>
-  dist() |>
-  hclust() |>
-  (function(x) x$label[x$order])()
-
-fn4_order_manual <- tribble(
-  ~label                        , ~group                           ,
-  "BB hydrolysis: peptide"      , "Enriched in<br>**pigmented**"   ,
-  "BB hydrolysis: carb"         , "Enriched in<br>**pigmented**"   ,
-  "Uptake: AA"                  , "Enriched in<br>**pigmented**"   ,
-  "Uptake: carb"                , "Enriched in<br>**pigmented**"   ,
-  "Uptake: lipid"               , "Enriched in<br>**pigmented**"   ,
-  "Endocytosis"                 , "Enriched in<br>**pigmented**"   ,
-  "Storage: lipid droplet"      , "Enriched in<br>**pigmented**"   ,
-  "Storage: glycogen"           , "Enriched in<br>**unpigmented**" ,
-  "Bile acid metabolism"        , "Enriched in<br>**unpigmented**" ,
-  "Catabolism: AA"              , "Enriched in<br>**unpigmented**" ,
-  "Catabolism: FA"              , "Enriched in<br>**unpigmented**" ,
-  "Catabolism: carb"            , "Enriched in<br>**unpigmented**" ,
-  "Synthesis: AA"               , "Enriched in<br>**unpigmented**" ,
-  "Synthesis: cholesterol"      , "Enriched in<br>**unpigmented**" ,
-  "Endocrine"                   , "Enriched in<br>**unpigmented**" ,
-  "Urea cycle"                  , "Other"                          ,
-  "Phagocytosis"                , "Other"                          ,
-  "Reesterification"            , "Other"                          ,
-  "Detoxification"              , "Other"                          ,
-  "Synthesis: carb"             , "Other"                          ,
-  "Luminal hydrolysis"          , "Other"                          ,
-  "Antimicrobial"               , "Other"                          ,
-  "Lysosomal digestion"         , "Other"                          ,
-  "Uptake: micronutrient"       , "Other"                          ,
-  "Export: carb"                , "Other"                          ,
-  "Efflux: cholesterol"         , "Other"                          ,
-  "Intracell. transport: lipid" , "Other"                          ,
-  "Chylomicron assembly"        , "Other"
+# categorize modules by their scaled median expression
+enriched_pigmented <- c(
+  "Luminal hydrolysis",
+  "BB hydrolysis: carb",
+  "BB hydrolysis: peptide",
+  "Uptake: carb",
+  "Uptake: AA",
+  "Uptake: lipid",
+  "Endocytosis",
+  "Storage: lipid droplet"
 )
 
-stopifnot(length(fn4_order[!fn4_order %in% fn4_order_manual$label]) == 0)
+enriched_unpigmented <- c(
+  "Endocrine",
+  "Synthesis: AA",
+  "Synthesis: cholesterol",
+  "Catabolism: carb",
+  "Catabolism: FA",
+  "Catabolism: AA",
+  "Storage: glycogen",
+  "Export: AA",
+  "Bile acid metabolism"
+)
 
+other <- fn4_idmap$label[
+  !fn4_idmap$label %in% c(enriched_pigmented, enriched_unpigmented)
+]
+
+fn4_idmap <- fn4_idmap |>
+  mutate(
+    group = case_when(
+      label %in% enriched_pigmented ~ "Enriched in<br>**pigmented**",
+      label %in% enriched_unpigmented ~ "Enriched in<br>**unpigmented**",
+      .default = "Other"
+    )
+  ) |>
+  arrange(group, id)
+
+write_tsv(fn4_idmap, here(resdir, "module-expression-pattern.tsv"))
+
+# plot
 zuss_fn4 |>
-  filter(label %in% fn4_order_manual$label) |>
-  left_join(fn4_order_manual, by = "label") |>
-  mutate(label = fct(label, fn4_order_manual$label)) |>
+  inner_join(fn4_idmap, by = "label") |>
+  mutate(
+    label = fct(
+      label,
+      c(rev(enriched_pigmented), rev(enriched_unpigmented), other)
+    )
+  ) |>
+  filter(group != "Other") |>
   ggplot(aes(sample, label, fill = zuss)) +
   geom_tile(color = "white", linewidth = lwd_thin) +
   facet_wrap(
@@ -286,7 +275,7 @@ quartz(
   type = "pdf",
   file = here(resdir, "module-heatmap.pdf"),
   width = 1.42,
-  height = 4.2
+  height = 3
 )
 print(last_plot())
 dev.off()
