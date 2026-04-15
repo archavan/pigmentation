@@ -11,8 +11,15 @@ library(glue)
 library(pvclust)
 library(ggtree)
 library(ggtext)
-library(patchwork)
-library(cowplot)
+library(conflicted)
+
+conflicts_prefer(
+  dplyr::filter,
+  dplyr::select,
+  dplyr::rename,
+  dplyr::slice
+)
+
 
 basedir <- here("figures")
 dir_cr <- here("species/crob/bulk/ARCA123/KY21")
@@ -49,6 +56,8 @@ md_cr <- read_csv(here(dir_cr, "data/00_metadata/samples.csv")) |>
     )
   )
 
+stopifnot(!anyNA(md_cr$pigment))
+
 tpm_cr <- read_csv(here(dir_cr, "data/03_compiled/tpm_no-testis.csv")) |>
   select(gene_id, all_of(md_cr$sample_name)) |>
   rename_with(function(x) {
@@ -74,7 +83,7 @@ pca_int_var <- summary(pca_int)$importance["Proportion of Variance", ] * 100
 pca_int_x <- pca_int$x |>
   as.data.frame() |>
   rownames_to_column("sample_id") |>
-  (function(.y) right_join(x = md_cr, y = .y, by = "sample_id"))()
+  inner_join(md_cr, by = "sample_id")
 
 p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   geom_polygon(
@@ -164,7 +173,7 @@ zuss_fn4 <- fn4 |>
   arrange(id) |>
   filter(!is.na(ortholog)) |>
   rename(gene_id = ortholog) |>
-  select(id, label, gene_id, display_name) |>
+  select(id, label, gene_id) |>
   inner_join(uss_long, by = "gene_id") |>
   summarize(uss = median(uss), .by = c(id, label, sample)) |>
   mutate(zuss = scale(uss)[, 1], .by = c(id, label))
@@ -285,16 +294,40 @@ display_names <- fn4 |>
   separate_wider_delim(hog_label, "_", names = c("nparalogs", "hog_symbol")) |>
   mutate(
     short_display_name = glue(
-      "{hog_symbol} <span style='color:\"{muted_text}\"; font-size:{ts_tiny}pt'>{gene_id} ({nparalogs})</span>"
+      "{hog_symbol}<span style='color:\"{muted_text}\"; font-size:{ts_tiny}pt'> / {gene_id} / {nparalogs}</span>"
     )
   ) |>
   select(gene_id, short_display_name) |>
   deframe()
 
+# keep most informative and key genes for brevity
+genes_to_exclude <- c(
+  # BB hydrolysis: peptide
+  "KY21.Chr9.1143",
+  "KY21.Chr9.534",
+  "KY21.Chr11.1215",
+  # Uptake: carb (only keep active transporters)
+  "KY21.Chr7.811",
+  "KY21.Chr7.760",
+  # Uptake: AA (only keep Slc15)
+  "KY21.Chr3.979",
+  "KY21.Chr3.660",
+  "KY21.Chr3.135",
+  "KY21.Chr2.764",
+  "KY21.Chr2.461",
+  "KY21.Chr2.1323",
+  # Uptake: lipid (only keep Cd36)
+  "KY21.Chr4.54",
+  "KY21.Chr2.1376",
+  # Catabolism: FA
+  "KY21.Chr8.983"
+)
+
 genes_to_plot <- fn4 |>
   select(id, label, gene_id = ortholog) |>
   filter(!is.na(gene_id)) |>
   filter(gene_id %in% names(display_names)) |>
+  filter(!gene_id %in% genes_to_exclude) |>
   filter(
     label %in%
       c(
@@ -312,31 +345,9 @@ genes_to_plot <- fn4 |>
         "Storage: glycogen"
       )
   ) |>
-  # keep most informative and key genes for brevity
-  filter(
-    !gene_id %in%
-      c(
-        # BB hydrolysis: peptide
-        "KY21.Chr9.1143",
-        "KY21.Chr9.534",
-        "KY21.Chr11.1215",
-        # Uptake: carb (only keep active transporters)
-        "KY21.Chr7.811",
-        "KY21.Chr7.760",
-        # Uptake: AA (only keep Slc15)
-        "KY21.Chr3.979",
-        "KY21.Chr3.660",
-        "KY21.Chr3.135",
-        "KY21.Chr2.764",
-        "KY21.Chr2.461",
-        "KY21.Chr2.1323",
-        # Uptake: lipid (only keep Cd36)
-        "KY21.Chr4.54",
-        "KY21.Chr2.1376",
-        # Catabolism: FA
-        "KY21.Chr8.983"
-      )
-  )
+  distinct()
+
+# NOTE: Gls is a part of both Synthesis: AA and Catabolism: AA.
 
 genes_to_plot_data <- uss_long |>
   inner_join(genes_to_plot, by = "gene_id") |>
@@ -393,7 +404,7 @@ p_genes_select <- genes_to_plot_data |>
 
 save_quartz(
   here(resdir, "gene-heatmap.pdf"),
-  .width = 2.115,
+  .width = 2.15,
   .height = 5.5,
   p_genes_select
 )
