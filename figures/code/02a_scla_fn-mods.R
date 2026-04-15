@@ -62,6 +62,15 @@ tpm_sc <- read_csv(here(dir_sc, "data/03_compiled/tpm_clean.csv")) |>
 
 uss_sc <- read_csv(here(dir_sc, "data/03_compiled/uss_intestine.csv"))
 
+## crob module enrichment =====================================================
+# We want to only plot the modules that are enriched in crob pigmented and
+# unpigmented segments, and specifically just the ones that highlight the
+# division of labor between uptake and metabolism.
+crob_enrichment <- read_tsv(here(
+  basedir,
+  "results/01a_crob_fn-mods/module-expression-pattern.tsv"
+))
+
 ###############################################################################
 # PCA =========================================================================
 ###############################################################################
@@ -122,3 +131,118 @@ p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   )
 
 save_quartz(here(resdir, "pca.pdf"), .width = 1.6, .height = 1.3, p_pca)
+
+###############################################################################
+# module heatmap ==============================================================
+###############################################################################
+
+sample_labels <- md_sc |>
+  distinct(sample, pigment) |>
+  mutate(
+    label = glue(
+      "<span style='color:{clrs_pigment_small[pigment]}; font-size:{ts_large}pt'>\u25cf</span> {sample}"
+    )
+  ) |>
+  pull(label, name = sample)
+
+# calculate median USS for each module and then scale
+uss_long <- uss_sc |>
+  pivot_longer(-gene_id, names_to = "sample_id", values_to = "uss") |>
+  inner_join(md_sc, by = "sample_id")
+
+zuss_fn4 <- fn4 |>
+  arrange(id) |>
+  filter(!is.na(ortholog)) |>
+  rename(gene_id = ortholog) |>
+  select(id, label, gene_id) |>
+  inner_join(uss_long, by = "gene_id") |>
+  summarize(uss = median(uss), .by = c(id, label, sample, gene_id)) |> # over replicates
+  summarize(uss = median(uss), .by = c(id, label, sample)) |> # over modules
+  mutate(zuss = scale(uss)[, 1], .by = c(id, label))
+
+keep_mods <- c(
+  "Uptake: carb",
+  "BB hydrolysis: carb",
+  "Endocytosis",
+  "BB hydrolysis: peptide",
+  "Uptake: AA",
+  "Uptake: lipid",
+  "Catabolism: FA",
+  "Synthesis: cholesterol",
+  "Catabolism: AA",
+  "Synthesis: AA",
+  "Catabolism: carb",
+  "Storage: glycogen"
+)
+
+fn4_categories <- crob_enrichment |>
+  filter(label %in% keep_mods) |>
+  mutate(
+    category = case_when(
+      enriched_in == "pigmented" ~ "Uptake",
+      enriched_in == "unpigmented" ~ "Metabolism",
+      .default = NA_character_
+    )
+  ) |>
+  mutate(category = fct(category, c("Uptake", "Metabolism")))
+
+# plot
+
+p_fn4_enriched <- zuss_fn4 |>
+  inner_join(fn4_categories, by = c("id", "label")) |>
+  mutate(label = fct(label, keep_mods)) |>
+  ggplot(aes(sample, label, fill = zuss)) +
+  geom_tile(color = "white", linewidth = lwd_thin) +
+  facet_wrap(
+    vars(category),
+    ncol = 1,
+    space = "free_y",
+    scales = "free_y",
+    labeller = labeller(category = function(x) {
+      glue("**{x}**")
+    })
+  ) +
+  scale_fill_gradient2(
+    low = clrs_gradient2$low,
+    mid = clrs_gradient2$mid,
+    high = clrs_gradient2$high,
+    name = "z(median(normalized expression))",
+    breaks = c(-1, 0, 1)
+  ) +
+  scale_x_discrete(labels = sample_labels) +
+  scale_y_discrete(position = "right") +
+  theme_figure() +
+  theme(
+    panel.border = element_blank(),
+    axis.line = element_line(linewidth = lwd_thin, color = "black"),
+    axis.title = element_blank(),
+    axis.text.x = element_markdown(angle = 90, vjust = 0.5, hjust = 1),
+    legend.position = "bottom",
+    legend.location = "plot",
+    legend.title.position = "top",
+    legend.title = element_markdown(
+      hjust = 0.5,
+      size = ts_small,
+      angle = 0,
+      margin = margin(b = 2)
+    ),
+    legend.text = element_text(size = ts_small, margin = margin(t = 2)),
+    legend.key.width = unit(0.75, "lines"),
+    legend.key.height = unit(0.25, "line"),
+    legend.box.spacing = unit(0.1, "lines"),
+    strip.clip = "off",
+    strip.text = element_markdown(
+      hjust = 0,
+      vjust = 0,
+      margin = margin(b = 1),
+    )
+  )
+
+save_quartz(
+  here(resdir, "module-heatmap.pdf"),
+  .width = 1.6,
+  .height = 2.2,
+  p_fn4_enriched
+)
+
+# end =========================================================================
