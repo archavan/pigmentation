@@ -8,17 +8,7 @@
 library(tidyverse)
 library(here)
 library(glue)
-library(pvclust)
-library(ggtree)
 library(ggtext)
-library(conflicted)
-
-conflicts_prefer(
-  dplyr::filter,
-  dplyr::select,
-  dplyr::rename,
-  dplyr::slice
-)
 
 basedir <- here("figures")
 dir_sc <- here("species/scla/bulk/PIG022/refseq_v1")
@@ -37,11 +27,6 @@ source(here(basedir, "code/utils_colors.R"), local = TRUE)
 ## genomic data ===============================================================
 fn4 <- read_tsv(here(dir_sc_genome, "results/genes/functional-modules_gut.tsv"))
 
-fn4_idmap <- fn4 |>
-  select(id, label) |>
-  distinct() |>
-  arrange(id)
-
 ## bulk RNA-seq data ==========================================================
 
 md_sc <- read_csv(here(dir_sc, "data/samples_clean.csv")) |>
@@ -51,14 +36,12 @@ md_sc <- read_csv(here(dir_sc, "data/samples_clean.csv")) |>
     pigment = case_when(
       sample %in% c("I1") ~ "white",
       sample %in% c("I2", "I3", "I4") ~ "dark",
-      sample %in% c("I5", "I6") ~ "light"
+      sample %in% c("I5", "I6") ~ "light",
+      .default = NA_character_
     )
   )
 
 stopifnot(!anyNA(md_sc$pigment))
-
-tpm_sc <- read_csv(here(dir_sc, "data/03_compiled/tpm_clean.csv")) |>
-  select(gene_id, all_of(md_sc$sample_id))
 
 uss_sc <- read_csv(here(dir_sc, "data/03_compiled/uss_intestine.csv"))
 
@@ -101,13 +84,12 @@ label_pos <- pca_int_x |>
   summarize(PC1 = median(PC1), PC2 = median(PC2), .by = sample) |>
   left_join(label_nudge, by = "sample")
 
+stopifnot(nrow(label_pos) == n_distinct(pca_int_x$sample))
+
 p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   geom_polygon(
     data = function(x) {
-      x |>
-        group_by(sample) |>
-        slice(chull(PC1, PC2)) |>
-        ungroup()
+      x |> slice(chull(PC1, PC2), .by = sample)
     },
     aes(x = PC1, y = PC2, group = sample, fill = pigment),
     color = "black",
