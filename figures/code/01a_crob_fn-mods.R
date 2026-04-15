@@ -51,21 +51,12 @@ md_cr <- read_csv(here(dir_cr, "data/00_metadata/samples.csv")) |>
   mutate(
     pigment = case_when(
       sample %in% c("I2", "I4") ~ "dark",
-      sample %in% c("I1", "I3") ~ "white"
+      sample %in% c("I1", "I3") ~ "white",
+      .default = NA_character_
     )
   )
 
 stopifnot(!anyNA(md_cr$pigment))
-
-tpm_cr <- read_csv(here(dir_cr, "data/03_compiled/tpm_no-testis.csv")) |>
-  select(gene_id, all_of(md_cr$sample_name)) |>
-  rename_with(function(x) {
-    ifelse(
-      x %in% md_cr$sample_name,
-      md_cr$sample_id[match(x, md_cr$sample_name)],
-      x
-    )
-  })
 
 uss_cr <- read_csv(here(dir_cr, "data/03_compiled/uss_intestine.csv"))
 
@@ -84,13 +75,24 @@ pca_int_x <- pca_int$x |>
   rownames_to_column("sample_id") |>
   inner_join(md_cr, by = "sample_id")
 
+label_nudge <- tribble(
+  ~sample , ~nudge_x , ~nudge_y ,
+  "I1"    , -0.75    , -1.7     ,
+  "I2"    , -1.5     ,  2       ,
+  "I3"    , -1       ,  3       ,
+  "I4"    ,  0       ,  4
+)
+
+label_pos <- pca_int_x |>
+  summarize(PC1 = median(PC1), PC2 = median(PC2), .by = sample) |>
+  left_join(label_nudge, by = "sample")
+
+stopifnot(nrow(label_pos) == n_distinct(pca_int_x$sample))
+
 p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   geom_polygon(
     data = function(x) {
-      x |>
-        group_by(sample) |>
-        slice(chull(PC1, PC2)) |>
-        ungroup()
+      x |> slice(chull(PC1, PC2), .by = sample)
     },
     aes(x = PC1, y = PC2, group = sample, fill = pigment),
     color = "black",
@@ -98,15 +100,10 @@ p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   ) +
   geom_point(shape = 21, stroke = lwd_medium, aes(fill = pigment)) +
   geom_text(
-    data = tribble(
-      ~PC1  , ~PC2 , ~sample ,
-      -8    ,    5 , "I3"    ,
-      -4    ,   -2 , "I1"    ,
-       4.75 ,   -4 , "I2"    ,
-       7    ,    4 , "I4"
-    ),
-    aes(x = PC1, y = PC2, label = sample),
-    size = ts_base / .pt
+    data = label_pos,
+    mapping = aes(PC1 + nudge_x, PC2 + nudge_y, label = sample),
+    size = ts_small,
+    size.unit = "pt"
   ) +
   scale_fill_manual(values = clrs_pigment, guide = "none") +
   labs(
@@ -342,7 +339,6 @@ genes_to_plot <- fn4 |>
         "Uptake: AA",
         "Uptake: lipid",
         "Endocytosis",
-        "Synthesis: AA",
         "Synthesis: cholesterol",
         "Catabolism: carb",
         "Catabolism: FA",
@@ -410,7 +406,7 @@ p_genes_select <- genes_to_plot_data |>
 save_quartz(
   here(resdir, "gene-heatmap.pdf"),
   .width = 2.15,
-  .height = 5.5,
+  .height = 5.1,
   p_genes_select
 )
 
