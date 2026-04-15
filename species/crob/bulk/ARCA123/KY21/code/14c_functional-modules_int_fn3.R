@@ -289,9 +289,8 @@ walk2(
 calculate_aggregated_uss <- function(.genes) {
   uss_long |>
     filter(gene_id %in% .genes) |>
-    group_by(tissue_short) |>
-    summarize(median_uss = median(uss)) |>
-    ungroup()
+    summarize(uss = median(uss), .by = c(gene_id, tissue_short)) |>
+    summarize(median_uss = median(uss), .by = tissue_short)
 }
 
 fn <- fn |> mutate(agg_uss = map(gene_ids, calculate_aggregated_uss))

@@ -20,7 +20,6 @@ conflicts_prefer(
   dplyr::slice
 )
 
-
 basedir <- here("figures")
 dir_cr <- here("species/crob/bulk/ARCA123/KY21")
 dir_cr_genome <- here("species/crob/genome/KY21")
@@ -175,8 +174,15 @@ zuss_fn4 <- fn4 |>
   rename(gene_id = ortholog) |>
   select(id, label, gene_id) |>
   inner_join(uss_long, by = "gene_id") |>
+  summarize(uss = median(uss), .by = c(id, label, sample, gene_id)) |>
   summarize(uss = median(uss), .by = c(id, label, sample)) |>
   mutate(zuss = scale(uss)[, 1], .by = c(id, label))
+
+# for manual inspection
+zuss_fn4 |>
+  pivot_wider(names_from = sample, values_from = zuss, id_cols = label) |>
+  column_to_rownames("label") |>
+  pheatmap::pheatmap(cluster_cols = FALSE)
 
 # categorize modules by their scaled median expression
 enriched_pigmented <- c(
@@ -198,8 +204,7 @@ enriched_unpigmented <- c(
   "Catabolism: FA",
   "Catabolism: AA",
   "Storage: glycogen",
-  "Export: AA",
-  "Bile acid metabolism"
+  "Export: AA"
 )
 
 other <- fn4_idmap$label[
@@ -279,7 +284,7 @@ p_fn4_enriched <- zuss_fn4 |>
 save_quartz(
   here(resdir, "module-heatmap.pdf"),
   .width = 1.42,
-  .height = 3,
+  .height = 2.9,
   p_fn4_enriched
 )
 
