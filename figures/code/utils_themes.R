@@ -40,6 +40,11 @@ theme_figure <- function(
       text = element_text(family = family, size = ts_base),
       plot.title = element_text(size = ts_large, hjust = 0),
       plot.subtitle = element_text(size = ts_medium),
+      plot.tag = element_text(
+        size = ts_huge,
+        face = 2,
+        margin = margin(b = 2, r = 2)
+      ),
       axis.title = element_text(size = ts_base),
       axis.text = element_text(size = ts_base, color = "black"),
       legend.text = element_text(size = ts_base),
