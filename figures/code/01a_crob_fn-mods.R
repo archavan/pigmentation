@@ -103,8 +103,7 @@ p_pca <- ggplot(pca_int_x, aes(x = PC1, y = PC2)) +
   scale_fill_manual(values = clrs_pigment, guide = "none") +
   labs(
     x = glue("PC1 ({round(pca_int_var[['PC1']])}%)"),
-    y = glue("PC2 ({round(pca_int_var[['PC2']])}%)"),
-    tag = "b"
+    y = glue("PC2 ({round(pca_int_var[['PC2']])}%)")
   ) +
   theme_figure() +
   theme(
@@ -133,7 +132,6 @@ p_pv <- ggtree(pv$hclust, linewidth = 0.35) %<+%
   ) +
   scale_fill_manual(values = clrs_pigment) +
   scale_x_continuous(limits = c(NA, 0.125)) +
-  labs(tag = "a") +
   theme_figure() +
   theme(
     panel.border = element_blank(),
@@ -242,7 +240,6 @@ p_fn4_enriched <- zuss_fn4 |>
   ) +
   scale_x_discrete(labels = sample_labels) +
   scale_y_discrete(position = "right") +
-  labs(tag = "c") +
   theme_figure() +
   theme(
     panel.border = element_blank(),
@@ -272,7 +269,7 @@ p_fn4_enriched <- zuss_fn4 |>
 
 save_quartz(
   here(resdir, "module-heatmap.pdf"),
-  .width = 1.46,
+  .width = 1.42,
   .height = 3,
   p_fn4_enriched
 )
@@ -366,10 +363,8 @@ p_genes_select <- genes_to_plot_data |>
   ) +
   scale_y_discrete(position = "right", labels = display_names) +
   scale_x_discrete(labels = sample_labels) +
-  labs(tag = "d") +
   theme_figure() +
   theme(
-    plot.tag = element_text(margin = margin(r = 4)),
     panel.border = element_blank(),
     axis.line = element_line(linewidth = lwd_thin, color = "black"),
     axis.title = element_blank(),
@@ -398,7 +393,7 @@ p_genes_select <- genes_to_plot_data |>
 
 save_quartz(
   here(resdir, "gene-heatmap.pdf"),
-  .width = 2.23,
+  .width = 2.115,
   .height = 5.5,
   p_genes_select
 )
