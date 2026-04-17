@@ -240,7 +240,8 @@ p_fn4_enriched <- zuss_fn4 |>
     scales = "free_y",
     labeller = labeller(enriched_in = function(x) {
       glue("Enriched in<br>**{x}**")
-    })
+    }),
+    strip.position = "left"
   ) +
   scale_fill_gradient2(
     low = clrs_gradient2$low,
@@ -271,7 +272,7 @@ p_fn4_enriched <- zuss_fn4 |>
     legend.key.height = unit(0.25, "line"),
     legend.box.spacing = unit(0.1, "lines"),
     strip.clip = "off",
-    strip.text = element_markdown(
+    strip.text.y.left = element_markdown(
       hjust = 0,
       vjust = 0,
       margin = margin(b = 1),
@@ -280,8 +281,8 @@ p_fn4_enriched <- zuss_fn4 |>
 
 save_quartz(
   here(resdir, "module-heatmap.pdf"),
-  .width = 1.42,
-  .height = 2.9,
+  .width = 1.6,
+  .height = 2.6,
   p_fn4_enriched
 )
 
@@ -305,8 +306,6 @@ display_names <- fn4 |>
 # keep most informative and key genes for brevity
 genes_to_exclude <- c(
   # BB hydrolysis: peptide
-  "KY21.Chr9.1143",
-  "KY21.Chr9.534",
   "KY21.Chr11.1215",
   # Uptake: carb (only keep active transporters)
   "KY21.Chr7.811",
@@ -320,9 +319,7 @@ genes_to_exclude <- c(
   "KY21.Chr2.1323",
   # Uptake: lipid (only keep Cd36)
   "KY21.Chr4.54",
-  "KY21.Chr2.1376",
-  # Catabolism: FA
-  "KY21.Chr8.983"
+  "KY21.Chr2.1376"
 )
 
 genes_to_plot <- fn4 |>
@@ -406,7 +403,7 @@ p_genes_select <- genes_to_plot_data |>
 save_quartz(
   here(resdir, "gene-heatmap.pdf"),
   .width = 2.15,
-  .height = 5.1,
+  .height = 5.5,
   p_genes_select
 )
 
