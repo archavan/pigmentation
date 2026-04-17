@@ -158,7 +158,7 @@ dp_extract_dotplot_data(ec_fn4, rownames(ec_fn4)) |>
   ) +
   scale_size(
     range = c(0, 4),
-    name = "% cells with expression",
+    name = "% Cells with Expression",
     guide = guide_legend(
       theme = theme(
         legend.key.height = unit(0.6, "lines"),
@@ -169,7 +169,7 @@ dp_extract_dotplot_data(ec_fn4, rownames(ec_fn4)) |>
   scale_color_gradient(
     low = "white",
     high = clrs_gradient2$high,
-    name = "z(average expression)",
+    name = "z(Average Expression)",
     guide = guide_colorbar(
       theme = theme(
         legend.key.height = unit(3, "lines"),
@@ -201,5 +201,89 @@ dp_extract_dotplot_data(ec_fn4, rownames(ec_fn4)) |>
   )
 
 save_quartz(here(resdir, "module-dotplot.pdf"), .width = 2.2, .height = 2.1)
+
+###############################################################################
+# PCA =========================================================================
+###############################################################################
+
+d_pca <- FetchData(ec, c("PC_1", "PC_2", "domain"))
+
+d_pca |>
+  ggplot(aes(PC_1, PC_2, color = domain)) +
+  geom_point(size = 0.5, shape = 16, stroke = 0) +
+  scale_color_discrete(
+    name = "Domain",
+    guide = guide_legend(override.aes = list(size = 2))
+  ) +
+  # scale_color_viridis_d(
+  #   option = "E",
+  #   name = "Domain",
+  #   guide = guide_legend(override.aes = list(size = 2))
+  # ) +
+  labs(x = "PC1 (Crypt to Villus)", y = "PC2 (Posterior to Anterior)") +
+  theme_figure() +
+  theme(
+    panel.border = element_blank(),
+    axis.line = element_line(linewidth = lwd_thin, color = "black"),
+    axis.title.x = element_markdown(),
+    axis.title.y = element_markdown(),
+    legend.box.spacing = unit(0, "lines"),
+    legend.key.size = unit(0.5, "lines")
+  )
+
+save_quartz(here(resdir, "pca.pdf"), .width = 2.2, .height = 1.4)
+
+###############################################################################
+# crypt villus markers on PCA =================================================
+###############################################################################
+cv_markers <- c(Crypt = "Rpl41", Villus = "Clca4a")
+
+d_markers <- FetchData(ec, c("PC_1", "PC_2", cv_markers))
+
+d_markers |>
+  rownames_to_column("barcode") |>
+  pivot_longer(
+    cols = all_of(unname(cv_markers)),
+    names_to = "gene",
+    values_to = "expression"
+  ) |>
+  mutate(gene = fct(gene, cv_markers)) |>
+  ggplot(aes(PC_1, PC_2, z = expression)) +
+  stat_summary_hex(bins = 60) +
+  facet_grid(
+    cols = vars(gene),
+    labeller = as_labeller(function(x) {
+      glue("*{x}* ({names(cv_markers[cv_markers == x])})")
+    })
+  ) +
+  scale_fill_viridis_c(direction = -1, name = "Norm. Expression") +
+  labs(x = "PC1", y = "PC2") +
+  theme_figure() +
+  theme(
+    panel.border = element_blank(),
+    axis.line = element_line(linewidth = lwd_thin, color = "black"),
+    axis.title.x = element_text(margin = margin(t = 3)),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    legend.position = "right",
+    legend.title.position = "left",
+    legend.title = element_text(
+      vjust = 1,
+      hjust = 0.5,
+      angle = 90,
+      margin = margin(r = 1)
+    ),
+    legend.box.spacing = unit(0, "lines"),
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.key.width = unit(0.25, "lines"),
+    legend.key.height = unit(0.75, "lines"),
+    strip.text = element_markdown(margin = margin(b = 1, t = 1))
+  )
+
+save_quartz(here(resdir, "cv-markers-on-pca.pdf"), .width = 2.3, .height = 1)
+
+###############################################################################
+# module against PC1 ==========================================================
+###############################################################################
 
 # end #########################################################################
