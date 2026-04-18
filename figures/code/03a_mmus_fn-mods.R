@@ -15,12 +15,12 @@ basedir <- here("figures")
 genomedir <- here("species/mmus/genome")
 dir_mm <- here("species/mmus/zwick")
 
-resdir <- here(basedir, "results/03a_mmus_fn-mods.R")
+resdir <- here(basedir, "results/03a_mmus_fn-mods")
 fs::dir_create(resdir)
 
-source(here(basedir, "code/utils_colors.R"))
-source(here(basedir, "code/utils_themes.R"))
-source(here(basedir, "code/utils_seurat-plots.R"))
+source(here(basedir, "code/utils_colors.R"), local = TRUE)
+source(here(basedir, "code/utils_themes.R"), local = TRUE)
+source(here(basedir, "code/utils_seurat-plots.R"), local = TRUE)
 
 ###############################################################################
 # data ========================================================================
@@ -75,7 +75,11 @@ fn4_categories <- crob_enrichment |>
 
 ## prepare data ===============================================================
 
-#' Collapse Seurat object from gene level to geneset level by aggregating counts
+#' Collapse Seurat object from gene level to geneset level by aggregating counts.
+#'   This is achieved by transposing the Seurat object so the genes are "cells"
+#'   so that we can AggregateExpression() across genes grouped by geneset, and
+#'   then transpose back so columns are cells, rows are genesets, and counts are
+#'   aggregated.
 #'
 #' @param .obj Seurat object
 #' @param .ids dataframe with one column named .group_col. Rownames should be
@@ -131,7 +135,6 @@ fn4_for_collapsing <- fn4_categories |>
   separate_longer_delim(genes, "; ") |>
   filter(!is.na(genes)) |>
   filter(!duplicated(genes)) |>
-  select(genes, id) |>
   column_to_rownames("genes")
 
 ec_fn4 <- collapse_genesets(ec, fn4_for_collapsing, "id") |>
@@ -220,11 +223,6 @@ p_pca <- d_pca |>
     name = "Domain",
     guide = guide_legend(override.aes = list(size = 2))
   ) +
-  # scale_color_viridis_d(
-  #   option = "E",
-  #   name = "Domain",
-  #   guide = guide_legend(override.aes = list(size = 2))
-  # ) +
   labs(x = "PC1 (Crypt to Villus)", y = "PC2 (Posterior to Anterior)") +
   theme_figure() +
   theme(
@@ -326,7 +324,7 @@ d_pc1_corr <- inner_join(
     names_to = "id",
     values_to = "expression"
   ) |>
-  left_join(fn4_for_pc1_corr) |>
+  left_join(fn4_for_pc1_corr, by = "id") |>
   filter(expression > 0)
 
 p_pc1_corr <- ggplot(d_pc1_corr, aes(PC_1, expression)) +
