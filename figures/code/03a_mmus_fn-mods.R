@@ -286,4 +286,57 @@ save_quartz(here(resdir, "cv-markers-on-pca.pdf"), .width = 2.3, .height = 1)
 # module against PC1 ==========================================================
 ###############################################################################
 
+fn4_for_pc1_corr <- fn4_categories |>
+  filter(str_detect(label, "Uptake|Catabolism")) |>
+  separate_wider_delim(
+    label,
+    ": ",
+    names = c(NA, "macromolecule"),
+    cols_remove = FALSE
+  ) |>
+  select(id, label, category, macromolecule) |>
+  mutate(
+    macromolecule = case_when(
+      macromolecule == "FA" ~ "lipid",
+      .default = macromolecule
+    )
+  ) |>
+  mutate(macromolecule = fct(macromolecule, c("AA", "lipid", "carb"))) |>
+  arrange(macromolecule, category) |>
+  mutate(label = fct_inorder(label))
+
+
+d_pc1_corr <- inner_join(
+  FetchData(ec, "PC_1") |> rownames_to_column("barcode"),
+  FetchData(ec_fn4, fn4_for_pc1_corr$id) |> rownames_to_column("barcode"),
+  by = "barcode"
+) |>
+  pivot_longer(
+    cols = starts_with("gut"),
+    names_to = "id",
+    values_to = "expression"
+  ) |>
+  left_join(fn4_for_pc1_corr) |>
+  filter(expression > 0)
+
+ggplot(d_pc1_corr, aes(PC_1, expression)) +
+  geom_point(shape = 16, stroke = 0, size = 0.4, color = "grey", alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, aes(color = category)) +
+  facet_wrap(vars(label), scales = "free_y", nrow = 3) +
+  scale_x_continuous(breaks = scales::breaks_width(20)) +
+  scale_color_discrete(name = NULL) +
+  labs(x = "PC1 (Crypt to Villus)", y = "Normalized Expression") +
+  theme_figure() +
+  theme(
+    panel.border = element_blank(),
+    axis.title.x = element_text(margin = margin(t = 3)),
+    axis.title.y = element_text(margin = margin(r = 3)),
+    axis.line = element_line(linewidth = lwd_thin, color = "black"),
+    strip.text = element_text(margin = margin(b = 2)),
+    legend.position = "bottom",
+    legend.box.spacing = unit(0, "lines")
+  )
+
+save_quartz(here(resdir, "modules-vs-pc1.pdf"), .width = 2.2, .height = 3.5)
+
 # end #########################################################################
