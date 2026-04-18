@@ -140,7 +140,7 @@ ec_fn4 <- collapse_genesets(ec, fn4_for_collapsing, "id") |>
 
 ## plot =======================================================================
 
-dp_extract_dotplot_data(ec_fn4, rownames(ec_fn4)) |>
+p_mod_dotplot <- dp_extract_dotplot_data(ec_fn4, rownames(ec_fn4)) |>
   left_join(fn4_categories, by = c("features.plot" = "id")) |>
   mutate(label = fct(label, levels = keep_mods)) |>
   ggplot() +
@@ -200,7 +200,12 @@ dp_extract_dotplot_data(ec_fn4, rownames(ec_fn4)) |>
     )
   )
 
-save_quartz(here(resdir, "module-dotplot.pdf"), .width = 2.2, .height = 2.1)
+save_quartz(
+  here(resdir, "module-dotplot.pdf"),
+  .width = 2.2,
+  .height = 2.1,
+  .plot = p_mod_dotplot
+)
 
 ###############################################################################
 # PCA =========================================================================
@@ -208,7 +213,7 @@ save_quartz(here(resdir, "module-dotplot.pdf"), .width = 2.2, .height = 2.1)
 
 d_pca <- FetchData(ec, c("PC_1", "PC_2", "domain"))
 
-d_pca |>
+p_pca <- d_pca |>
   ggplot(aes(PC_1, PC_2, color = domain)) +
   geom_point(size = 0.5, shape = 16, stroke = 0) +
   scale_color_discrete(
@@ -231,7 +236,7 @@ d_pca |>
     legend.key.size = unit(0.5, "lines")
   )
 
-save_quartz(here(resdir, "pca.pdf"), .width = 2.2, .height = 1.4)
+save_quartz(here(resdir, "pca.pdf"), .width = 2.2, .height = 1.4, .plot = p_pca)
 
 ###############################################################################
 # crypt villus markers on PCA =================================================
@@ -240,7 +245,7 @@ cv_markers <- c(Crypt = "Rpl41", Villus = "Clca4a")
 
 d_markers <- FetchData(ec, c("PC_1", "PC_2", cv_markers))
 
-d_markers |>
+p_markers <- d_markers |>
   rownames_to_column("barcode") |>
   pivot_longer(
     cols = all_of(unname(cv_markers)),
@@ -280,7 +285,12 @@ d_markers |>
     strip.text = element_markdown(margin = margin(b = 1, t = 1))
   )
 
-save_quartz(here(resdir, "cv-markers-on-pca.pdf"), .width = 2.3, .height = 1)
+save_quartz(
+  here(resdir, "cv-markers-on-pca.pdf"),
+  .width = 2.3,
+  .height = 1,
+  .plot = p_markers
+)
 
 ###############################################################################
 # module against PC1 ==========================================================
@@ -319,7 +329,7 @@ d_pc1_corr <- inner_join(
   left_join(fn4_for_pc1_corr) |>
   filter(expression > 0)
 
-ggplot(d_pc1_corr, aes(PC_1, expression)) +
+p_pc1_corr <- ggplot(d_pc1_corr, aes(PC_1, expression)) +
   geom_point(shape = 16, stroke = 0, size = 0.4, color = "grey", alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, aes(color = category)) +
   facet_wrap(vars(label), scales = "free_y", nrow = 3) +
@@ -337,6 +347,11 @@ ggplot(d_pc1_corr, aes(PC_1, expression)) +
     legend.box.spacing = unit(0, "lines")
   )
 
-save_quartz(here(resdir, "modules-vs-pc1.pdf"), .width = 2.2, .height = 3.5)
+save_quartz(
+  here(resdir, "modules-vs-pc1.pdf"),
+  .width = 2.2,
+  .height = 3.5,
+  .plot = p_pc1_corr
+)
 
 # end #########################################################################
