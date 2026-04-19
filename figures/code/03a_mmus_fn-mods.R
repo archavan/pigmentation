@@ -260,7 +260,7 @@ p_markers <- d_markers |>
     })
   ) +
   scale_fill_viridis_c(direction = -1, name = "Norm. Expression") +
-  labs(x = "PC1", y = "PC2") +
+  labs(x = "PC1 (Crypt to Villus)", y = "PC2") +
   theme_figure() +
   theme(
     panel.border = element_blank(),
