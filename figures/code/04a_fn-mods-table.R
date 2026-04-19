@@ -92,4 +92,36 @@ save_as_docx(
 
 system2("open", here(resdir, "fn4-modules-table.docx"))
 
+###############################################################################
+# simple table: only label and genes ==========================================
+###############################################################################
+
+fn4_simple <- fn4 |>
+  select(label, genes) |>
+  mutate(genes = str_replace_all(genes, ";\\s*", ", ")) |>
+  mutate(genes = map_chr(genes, alphabetize_genes))
+
+ft_simple <- flextable(fn4_simple)
+
+ft_simple <- ft_simple |>
+  set_table_properties(layout = "autofit") |>
+  set_header_labels(
+    label = "Module",
+    genes = "Genes"
+  ) |>
+  style(j = 2, pr_t = fp_text_default(italic = TRUE)) |>
+  bg(
+    i = seq(2, nrow(fn4_reorg), 2),
+    bg = "#EEEEEE"
+  ) |>
+  theme_box()
+
+save_as_docx(
+  ft_simple,
+  path = here(resdir, "fn4-modules-table_simple.docx"),
+  pr_section = prop_section(page_size = page_size(width = 8.5, height = 11))
+)
+
+system2("open", here(resdir, "fn4-modules-table_simple.docx"))
+
 # end #########################################################################
