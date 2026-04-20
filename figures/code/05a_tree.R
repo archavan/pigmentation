@@ -95,7 +95,12 @@ ggtree(tr, layout = "rectangular", size = 0, ladderize = TRUE) +
   geom_highlight(
     node = nodes_to_label[["tunicates"]],
     fill = "#FFFACD",
-    alpha = 0.5
+    alpha = 1
+  ) +
+  geom_highlight(
+    node = nodes_to_label[["vertebrates"]],
+    fill = "#ADD8E6",
+    alpha = 1
   ) +
   geom_tree(size = lwd_thin) + # redraws edges on top of the highlight
   geom_tiplab(
