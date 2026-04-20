@@ -7,7 +7,6 @@
 
 library(ape)
 library(here)
-library(glue)
 library(tidyverse)
 library(ggtree)
 library(conflicted)
@@ -16,9 +15,9 @@ conflicts_prefer(dplyr::filter, dplyr::select)
 
 basedir <- here("figures")
 resdir <- here(basedir, "results/05a_tree")
-fs::dir_create(here(resdir))
+fs::dir_create(resdir)
 
-source(here(basedir, "code/utils_themes.R"))
+source(here(basedir, "code/utils_themes.R"), local = TRUE)
 
 ###############################################################################
 # data ========================================================================
@@ -127,7 +126,7 @@ ggtree(tr, layout = "rectangular", size = 0, ladderize = TRUE) +
     hjust = 0.5,
     vjust = 0,
     nudge_x = -0.1,
-    nudge_y = 00,
+    nudge_y = 0,
     size = ts_small / .pt
   ) +
   geom_nodelab(
