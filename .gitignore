@@ -58,6 +58,7 @@ rsconnect/
 **/composed
 temp.*
 .positai
+Manuscript
 
 *.pdf
 *.png
