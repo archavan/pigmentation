@@ -274,18 +274,27 @@ wrap_plots(
   theme(
     legend.position = "bottom",
     panel.border = element_blank(),
+    plot.background = element_blank(),
+    plot.margin = margin(1, 1, 1, 1),
     axis.line = element_line(linewidth = lwd_thin, color = "black"),
-    strip.text = element_markdown(),
+    axis.title = element_text(size = ts_tiny),
+    axis.text = element_text(size = ts_tiny),
+    strip.text = element_markdown(size = ts_tiny, margin = margin(t = 1)),
     legend.title.position = "top",
-    legend.title = element_text(hjust = 0.5, margin = margin(b = 2)),
-    legend.text = element_text(margin = margin(t = 2)),
-    legend.box.spacing = unit(0.1, "lines")
+    legend.title = element_text(
+      hjust = 0.5,
+      margin = margin(b = 2),
+      size = ts_tiny
+    ),
+    legend.text = element_text(margin = margin(t = 2), size = ts_tiny),
+    legend.box.spacing = unit(0.1, "mm"),
+    legend.box.margin = margin()
   )
 
 save_quartz(
   here(resdir, "pca_and_cv-markers-on-pca.pdf"),
-  .width = 2.8,
-  .height = 1.6,
+  .width = 2.26,
+  .height = 1.3,
   .plot = last_plot()
 )
 
