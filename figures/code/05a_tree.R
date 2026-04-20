@@ -157,6 +157,6 @@ ggtree(tr, layout = "rectangular", size = 0, ladderize = TRUE) +
   scale_x_continuous(limits = c(NA, 7)) +
   coord_cartesian(clip = "off")
 
-save_quartz(here(resdir, "tree.pdf"), .width = 2.3, .height = 3.1)
+save_quartz(here(resdir, "tree.pdf"), .width = 2.7, .height = 3.1)
 
 # end #########################################################################
