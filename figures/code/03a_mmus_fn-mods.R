@@ -10,6 +10,7 @@ library(here)
 library(glue)
 library(Seurat)
 library(ggtext)
+library(patchwork)
 
 basedir <- here("figures")
 genomedir <- here("species/mmus/genome")
@@ -50,12 +51,12 @@ keep_mods <- c(
   "Endocytosis",
   "Uptake: carb",
   "BB hydrolysis: carb",
-  "Synthesis: cholesterol",
-  "Catabolism: carb",
-  "Synthesis: AA",
   "Storage: glycogen",
+  "Synthesis: AA",
   "Catabolism: AA",
-  "Catabolism: FA"
+  "Catabolism: FA",
+  "Synthesis: cholesterol",
+  "Catabolism: carb"
 )
 
 fn4_categories <- crob_enrichment |>
@@ -211,37 +212,27 @@ save_quartz(
 )
 
 ###############################################################################
-# PCA =========================================================================
+# PCA and crytp villus markers on PCA =========================================
 ###############################################################################
 
 d_pca <- FetchData(ec, c("PC_1", "PC_2", "domain"))
 
+cv_markers <- c(Crypt = "Rpl41", Villus = "Clca4a")
+d_markers <- FetchData(ec, c("PC_1", "PC_2", cv_markers))
+
 p_pca <- d_pca |>
   ggplot(aes(PC_1, PC_2, color = domain)) +
-  geom_point(size = 0.5, shape = 16, stroke = 0) +
+  geom_point(size = 0.4, shape = 16, stroke = 0) +
   scale_color_discrete(
     name = "Domain",
-    guide = guide_legend(override.aes = list(size = 2))
-  ) +
-  labs(x = "PC1 (Crypt to Villus)", y = "PC2 (Posterior to Anterior)") +
-  theme_figure() +
-  theme(
-    panel.border = element_blank(),
-    axis.line = element_line(linewidth = lwd_thin, color = "black"),
-    axis.title.x = element_markdown(),
-    axis.title.y = element_markdown(),
-    legend.box.spacing = unit(0, "lines"),
-    legend.key.size = unit(0.5, "lines")
+    guide = guide_legend(
+      override.aes = list(size = 2),
+      theme = theme(
+        legend.key.size = unit(0.1, "lines"),
+        legend.text.position = "bottom"
+      )
+    )
   )
-
-save_quartz(here(resdir, "pca.pdf"), .width = 2.2, .height = 1.4, .plot = p_pca)
-
-###############################################################################
-# crypt villus markers on PCA =================================================
-###############################################################################
-cv_markers <- c(Crypt = "Rpl41", Villus = "Clca4a")
-
-d_markers <- FetchData(ec, c("PC_1", "PC_2", cv_markers))
 
 p_markers <- d_markers |>
   rownames_to_column("barcode") |>
@@ -259,35 +250,43 @@ p_markers <- d_markers |>
       glue("*{x}* ({names(cv_markers[cv_markers == x])})")
     })
   ) +
-  scale_fill_viridis_c(direction = -1, name = "Norm. Expression") +
-  labs(x = "PC1 (Crypt to Villus)", y = "PC2") +
-  theme_figure() +
+  scale_fill_viridis_c(
+    direction = -1,
+    name = "Norm. Expression",
+    guide = guide_colorbar(
+      theme = theme(
+        legend.key.height = unit(0.4, "lines"),
+        legend.key.width = unit(3, "lines")
+      )
+    )
+  )
+
+wrap_plots(
+  p_pca,
+  p_markers,
+  axes = "collect_y",
+  axis_titles = "collect",
+  widths = c(1, 2)
+) &
+  scale_x_continuous(breaks = scales::breaks_width(20)) &
+  labs(x = "PC1 (Crypt to Villus)", y = "PC2 (Posterior to Anterior)") &
+  theme_figure() &
   theme(
+    legend.position = "bottom",
     panel.border = element_blank(),
     axis.line = element_line(linewidth = lwd_thin, color = "black"),
-    axis.title.x = element_text(margin = margin(t = 3)),
-    axis.text = element_blank(),
-    axis.ticks = element_blank(),
-    legend.position = "right",
-    legend.title.position = "left",
-    legend.title = element_text(
-      vjust = 1,
-      hjust = 0.5,
-      angle = 90,
-      margin = margin(r = 1)
-    ),
-    legend.box.spacing = unit(0, "lines"),
-    legend.box.margin = margin(0, 0, 0, 0),
-    legend.key.width = unit(0.25, "lines"),
-    legend.key.height = unit(0.75, "lines"),
-    strip.text = element_markdown(margin = margin(b = 1, t = 1))
+    strip.text = element_markdown(),
+    legend.title.position = "top",
+    legend.title = element_text(hjust = 0.5, margin = margin(b = 2)),
+    legend.text = element_text(margin = margin(t = 2)),
+    legend.box.spacing = unit(0.1, "lines")
   )
 
 save_quartz(
-  here(resdir, "cv-markers-on-pca.pdf"),
-  .width = 2.3,
-  .height = 1,
-  .plot = p_markers
+  here(resdir, "pca_and_cv-markers-on-pca.pdf"),
+  .width = 2.8,
+  .height = 1.6,
+  .plot = last_plot()
 )
 
 ###############################################################################
