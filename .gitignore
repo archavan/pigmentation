@@ -59,6 +59,8 @@ rsconnect/
 temp.*
 .positai
 Manuscript
+**/flowchart
+**/images
 
 *.pdf
 *.png
