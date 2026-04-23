@@ -23,7 +23,6 @@ source(here(basedir, "code/utilities_ggplot.R"))
 ###############################################################################
 
 tpm <- read_csv(here(basedir, "data/03_compiled/tpm_clean.csv"))
-uss <- read_csv(here(basedir, "data/03_compiled/uss_intestine.csv"))
 samples <- read_csv(here(basedir, "data/samples_clean.csv"))
 
 tpm_long <- tpm |>
@@ -37,39 +36,21 @@ genes <- read_tsv(here(genomedir, "results/genes/gene-display-names.tsv"))
 # plots =======================================================================
 ###############################################################################
 
-get_hog_label <- function(.gene_id) {
-  genes |>
-    filter(gene_id %in% .gene_id) |>
-    distinct(gene_id, hog_label) |>
-    deframe() |>
-    str_replace("(.+)_(.+)", "\\2 (\\1)")
-}
-
 plot_genes <- function(.gene_ids) {
   genes |>
     filter(gene_id %in% .gene_ids) |>
+    distinct(gene_id, hog_label) |>
+    mutate(
+      facet_label = glue(
+        "{gene_id}<br>{str_replace(hog_label, '(.+)_(.+)', '\\\\2 (\\\\1)')}"
+      )
+    ) |>
     inner_join(tpm_long, by = "gene_id") |>
     ggplot(aes(sample, tpm)) +
     geom_point(color = "grey75") +
-    geom_line(
-      data = function(x) {
-        x |> summarize(tpm = median(tpm), .by = c(gene_id, sample))
-      },
-      mapping = aes(sample, tpm, group = gene_id)
-    ) +
-    geom_point(
-      data = function(x) {
-        x |> summarize(tpm = median(tpm), .by = c(gene_id, sample))
-      },
-      mapping = aes(sample, tpm)
-    ) +
-    facet_wrap(
-      vars(gene_id),
-      scale = "free_y",
-      labeller = labeller(gene_id = function(x) {
-        glue("{x}<br>{get_hog_label(x)}")
-      })
-    ) +
+    stat_summary(fun = median, geom = "line", aes(group = facet_label)) +
+    stat_summary(fun = median, geom = "point") +
+    facet_wrap(vars(facet_label), scales = "free_y") +
     theme_half_open_grid() +
     theme(
       strip.clip = "off",
@@ -78,19 +59,19 @@ plot_genes <- function(.gene_ids) {
 }
 
 ## parahox genes ==============================================================
-genes |>
+p_parahox <- genes |>
   filter(str_detect(hog_label, "Pdx1") | str_detect(hog_label, "Cdx")) |>
   pull(gene_id) |>
   plot_genes()
 
-ggsave(here(resdir, "parahox-genes.pdf"), width = 6, height = 3)
+ggsave(here(resdir, "parahox-genes.pdf"), p_parahox, width = 6, height = 3)
 
 ## hox genes ==================================================================
-genes |>
-  filter(str_detect(hog_label, regex("Hox", FALSE))) |>
+p_hox <- genes |>
+  filter(str_detect(hog_label, "Hox")) |>
   pull(gene_id) |>
   plot_genes()
 
-ggsave(here(resdir, "hox-genes.pdf"), width = 8, height = 5)
+ggsave(here(resdir, "hox-genes.pdf"), p_hox, width = 8, height = 5)
 
 # end #########################################################################
