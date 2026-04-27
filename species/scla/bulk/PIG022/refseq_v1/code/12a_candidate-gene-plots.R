@@ -74,4 +74,18 @@ p_hox <- genes |>
 
 ggsave(here(resdir, "hox-genes.pdf"), p_hox, width = 8, height = 5)
 
+## alkaline phosphatase =======================================================
+
+p_alkphos <- genes |>
+  filter(str_detect(hog_label, "m4s7_Akp3.Alp\\(i,l,pl2\\)")) |>
+  pull(gene_id) |>
+  plot_genes()
+
+ggsave(
+  here(resdir, "alkaline-phosphatase.pdf"),
+  p_alkphos,
+  width = 8,
+  height = 6.5
+)
+
 # end #########################################################################
