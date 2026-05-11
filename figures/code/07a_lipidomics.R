@@ -205,7 +205,7 @@ js_tidy <- js$pca_out$rotation |>
   as.data.frame() |>
   rownames_to_column("species") |>
   pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "loading") |>
-  left_join(
+  inner_join(
     js$pval |>
       as.data.frame() |>
       rownames_to_column("species") |>
