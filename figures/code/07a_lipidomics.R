@@ -30,6 +30,7 @@ xlpath <- here(datadir, "20250716Lipid6500_Exp5_CionaLipid.xlsx")
 
 source(here(basedir, "code/utils_themes.R"), local = TRUE)
 source(here(basedir, "code/utils_colors.R"), local = TRUE)
+source(here(basedir, "code/utilities_jackstraw.R"), local = TRUE)
 
 clrs_group <- c(
   S = clrs_pigment_small$light,
@@ -147,7 +148,9 @@ lpd_mat <- lpd_species_pct |>
 
 lpd_mat <- lpd_mat[, apply(lpd_mat, 2, var) > 0]
 
-pca_res <- prcomp(lpd_mat, scale. = TRUE)
+set.seed(4719)
+js <- js_run_pca_with_jackstraw(t(lpd_mat), s = 10, B = 1000, ndim = 2)
+pca_res <- js$pca_out
 pca_var <- summary(pca_res)$importance["Proportion of Variance", ] * 100
 
 pca_x <- pca_res$x |>
@@ -193,6 +196,29 @@ p_pca <- ggplot(pca_x, aes(x = PC1, y = PC2)) +
   )
 
 save_quartz(here(resdir, "pca.pdf"), .width = 1.6, .height = 1.3, p_pca)
+
+###############################################################################
+# jackstraw ===================================================================
+###############################################################################
+
+js_tidy <- js$pca_out$rotation |>
+  as.data.frame() |>
+  rownames_to_column("species") |>
+  pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "loading") |>
+  left_join(
+    js$pval |>
+      as.data.frame() |>
+      rownames_to_column("species") |>
+      pivot_longer(cols = starts_with("PC"), names_to = "PC", values_to = "pval"),
+    by = c("PC", "species")
+  ) |>
+  mutate(padj = p.adjust(pval, method = "BH"), .by = PC) |>
+  mutate(direction = ifelse(loading < 0, "negative", "positive")) |>
+  arrange(PC, direction, desc(abs(loading)))
+
+js_tidy |>
+  filter(padj < 0.2) |>
+  write_tsv(here(resdir, "jackstraw_sig-species.tsv"))
 
 ###############################################################################
 # hierarchical clustering =====================================================
