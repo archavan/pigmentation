@@ -20,7 +20,9 @@ fs::dir_create(resdir)
 # data ========================================================================
 ###############################################################################
 
-fn4 <- read_tsv(here(basedir, "data/fn4-modules-for-table.tsv"))
+fn4 <- read_tsv(here(
+  "species/mmus/genome/gene-modules/functional-modules_gut.tsv"
+))
 
 ###############################################################################
 # make table ==================================================================
@@ -53,7 +55,22 @@ fn4_reorg <- fn4 |>
 ft <- flextable(fn4_reorg)
 
 ft <- ft |>
-  merge_v(j = ~ Hierarchy.1 + Hierarchy.2 + Hierarchy.3 + Hierarchy.4) |>
+  merge_v(j = "Hierarchy.1") |>
+  merge_v(
+    j = c("Hierarchy.1", "Hierarchy.2"),
+    target = "Hierarchy.2",
+    combine = TRUE
+  ) |>
+  merge_v(
+    j = c("Hierarchy.1", "Hierarchy.2", "Hierarchy.3"),
+    target = "Hierarchy.3",
+    combine = TRUE
+  ) |>
+  merge_v(
+    j = c("Hierarchy.1", "Hierarchy.2", "Hierarchy.3", "Hierarchy.4"),
+    target = "Hierarchy.4",
+    combine = TRUE
+  ) |>
   set_table_properties(layout = "autofit") |>
   set_header_labels(
     Hierarchy.1 = "First",
